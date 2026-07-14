@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://encuentropsicologico.vercel.app"),
   title: "Cuando el Duelo se Detiene | Jornada Clínica 2026",
   description: "Jornada Clínica sobre Duelo Prolongado. 15 de agosto de 2026 en Chimaltenango, modalidad híbrida.",
   icons: { icon: "/favicon.svg" },
