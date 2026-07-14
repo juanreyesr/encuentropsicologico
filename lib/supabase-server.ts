@@ -5,7 +5,7 @@ function configuration() {
   if (!projectUrl || !secretKey) {
     throw new Error("Falta configurar SUPABASE_URL y SUPABASE_SECRET_KEY en el servidor.");
   }
-  return { projectUrl: projectUrl.replace(/\/$/, ""), secretKey };
+  return { projectUrl: projectUrl.trim().replace(/\/$/, ""), secretKey: secretKey.trim() };
 }
 
 export function supabaseServerConfiguration() { return configuration(); }

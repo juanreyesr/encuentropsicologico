@@ -7,7 +7,7 @@ async function availability() {
   const response = await supabaseServerFetch("encuentro_psicologico_registrations?select=id&modality=eq.presencial&status=eq.confirmed", {
     headers: { Prefer: "count=exact", Range: "0-0" },
   });
-  if (!response.ok) throw new Error("No se pudo consultar el cupo presencial.");
+  if (!response.ok) { console.error("Supabase capacity error", response.status, await response.text()); throw new Error("No se pudo consultar el cupo presencial."); }
   const total = Number(response.headers.get("content-range")?.split("/")[1] ?? 0);
   return { capacity: CAPACITY, confirmed: total, available: Math.max(0, CAPACITY - total), full: total >= CAPACITY };
 }
