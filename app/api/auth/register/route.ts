@@ -1,6 +1,7 @@
 import { createParticipant, signIn } from "../../../../lib/auth";
 
 export async function POST(request: Request) {
+ try {
   const data = await request.json() as { email?: string; phone?: string; name?: string };
   const email = data.email?.trim().toLowerCase();
   const phone = data.phone?.replace(/\s+/g, "");
@@ -13,4 +14,8 @@ export async function POST(request: Request) {
   }
   if (!user) return Response.json({ error: "No se pudo iniciar la sesión creada." }, { status: 503 });
   return Response.json({ ok: true, user: { email: user.email } });
+ } catch (error) {
+  console.error("Auth registration unavailable", error instanceof Error ? error.message : "unknown");
+  return Response.json({ error: "La creación de cuentas está temporalmente sin conexión. Revisa Supabase en Vercel." }, { status: 503 });
+ }
 }
