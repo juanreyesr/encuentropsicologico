@@ -17,6 +17,7 @@ export async function supabaseServerFetch(path: string, init: RequestInit = {}) 
     ...init,
     headers: {
       apikey: secretKey,
+      Authorization: `Bearer ${secretKey}`,
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },

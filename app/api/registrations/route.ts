@@ -3,6 +3,10 @@ import { currentUser } from "../../../lib/auth";
 
 const CAPACITY = 250;
 
+function digits(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
 async function availability() {
   const response = await supabaseServerFetch("encuentro_psicologico_registrations?select=id&modality=eq.presencial&status=eq.confirmed", {
     headers: { Prefer: "count=exact", Range: "0-0" },
@@ -23,6 +27,10 @@ export async function POST(request: Request) {
   const data = await request.json() as Record<string, string | boolean>;
   if (!data.name || !data.email || !data.phone || !data.modality) return Response.json({ error: "Faltan datos requeridos" }, { status: 400 });
   if (data.modality !== "presencial" && data.modality !== "virtual") return Response.json({ error: "Selecciona si tu asistencia será presencial o virtual." }, { status: 400 });
+  const phone = digits(data.phone);
+  const license = data.license ? digits(data.license) : null;
+  if (phone.length < 8) return Response.json({ error: "Ingresa un número de teléfono válido." }, { status: 400 });
+  if (data.license && !license) return Response.json({ error: "El número de colegiado debe incluir solo números." }, { status: 400 });
 
   const response = await supabaseServerFetch("rpc/encuentro_psicologico_register", {
     method: "POST",
@@ -30,14 +38,15 @@ export async function POST(request: Request) {
       p_modality: data.modality,
       p_name: data.name,
       p_email: data.email,
-      p_phone: data.phone,
+      p_phone: phone,
       p_attendee_type: data.attendeeType || "general",
       p_profession: data.profession || null,
-      p_license: data.license || null,
+      p_license: license,
       p_institution: data.institution || null,
       p_country: data.country || "Guatemala",
       p_waitlist: Boolean(data.waitlist),
       p_user_id: user.id,
+      p_department: data.department || null,
     }),
   });
   if (!response.ok) return Response.json({ error: "No fue posible completar la inscripción." }, { status: 503 });

@@ -1,10 +1,14 @@
 import { createParticipant, findAuthUserIdByEmail, signIn, startParticipantSession } from "../../../../lib/auth";
 
+function digits(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
 export async function POST(request: Request) {
  try {
   const data = await request.json() as { email?: string; phone?: string; name?: string };
   const email = data.email?.trim().toLowerCase();
-  const phone = data.phone?.replace(/\s+/g, "");
+  const phone = digits(data.phone);
   if (!email || !phone || !data.name || phone.length < 8) return Response.json({ error: "Ingresa un correo, nombre y teléfono válidos." }, { status: 400 });
   let user = await signIn(email, phone);
   if (!user) {

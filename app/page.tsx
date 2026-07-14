@@ -18,6 +18,10 @@ const agenda = [
   { time: "11:25–12:00", type: "Cierre", title: "Panel de preguntas y entrega de constancias", speaker: "Conversación con los 6 ponentes · cierre institucional" },
 ];
 
+const guatemalaDepartments = [
+  "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Guatemala", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa",
+];
+
 export default function Home() {
   const [registration, setRegistration] = useState<"presencial" | "virtual" | null>(null);
   const [professional, setProfessional] = useState(false);
@@ -29,6 +33,13 @@ export default function Home() {
   const [waitlisted, setWaitlisted] = useState(false);
   const [registrationError, setRegistrationError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [phoneLookup, setPhoneLookup] = useState<{ status: "idle" | "checking" | "found" | "not-found"; maskedEmail?: string; modality?: string; error?: string }>({ status: "idle" });
+  const [registrationPhone, setRegistrationPhone] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportProblem, setSupportProblem] = useState("");
+  const [supportSent, setSupportSent] = useState(false);
   const [speakers, setSpeakers] = useState<EventSpeaker[]>([]);
   const [selectedSpeaker, setSelectedSpeaker] = useState<EventSpeaker | null>(null);
   const [siteContent, setSiteContent] = useState({ title: "Cuando el Duelo se Detiene", date: "15 DE AGOSTO 2026", place: "CHIMALTENANGO", description: "Jornada Clínica sobre Duelo Prolongado. Seis miradas para comprender su diagnóstico, impacto corporal y abordaje terapéutico, familiar, psiquiátrico y comunitario.", live: false });
@@ -57,7 +68,49 @@ export default function Home() {
     setAlreadyRegistered(false);
     setWaitlisted(false);
     setRegistrationError("");
+    setPhoneLookup({ status: "idle" });
+    setRegistrationPhone("");
+    setLoginEmail("");
+    setSupportOpen(false);
+    setSupportProblem("");
+    setSupportSent(false);
     setRegistration(modality);
+  }
+
+  function digitsOnly(value: string) {
+    return value.replace(/\D/g, "");
+  }
+
+  function keepOnlyDigits(event: FormEvent<HTMLInputElement>) {
+    event.currentTarget.value = digitsOnly(event.currentTarget.value);
+    if (event.currentTarget.name === "phone") setRegistrationPhone(event.currentTarget.value);
+  }
+
+  async function checkPhone(phone: string) {
+    const normalizedPhone = digitsOnly(phone);
+    if (normalizedPhone.length < 8) { setPhoneLookup({ status: "idle" }); return; }
+    setPhoneLookup({ status: "checking" });
+    const response = await fetch("/api/registrations/lookup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: normalizedPhone }) });
+    if (!response.ok) { setPhoneLookup({ status: "idle", error: "No se pudo verificar el teléfono." }); return; }
+    const result = await response.json() as { found?: boolean; maskedEmail?: string; modality?: string };
+    setPhoneLookup(result.found ? { status: "found", maskedEmail: result.maskedEmail, modality: result.modality } : { status: "not-found" });
+  }
+
+  async function loginFromPhone() {
+    setLoginLoading(true);
+    setRegistrationError("");
+    const response = await fetch("/api/auth/phone-login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: registrationPhone, email: loginEmail }) });
+    const result = await response.json();
+    setLoginLoading(false);
+    if (!response.ok) { setRegistrationError(result.error ?? "No fue posible iniciar sesión."); return; }
+    window.location.href = result.destination ?? "/mi-cuenta";
+  }
+
+  async function sendSupportProblem() {
+    const response = await fetch("/api/support-problems", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: registrationPhone, problem: supportProblem }) });
+    if (!response.ok) { setRegistrationError("No fue posible enviar el problema. Intenta de nuevo."); return; }
+    setSupportSent(true);
+    setSupportOpen(false);
   }
 
   async function submitRegistration(event: FormEvent<HTMLFormElement>) {
@@ -67,7 +120,7 @@ export default function Home() {
     const accountResponse = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: form.get("name"), email: form.get("email"), phone: form.get("phone") }) });
     const accountResult = await accountResponse.json();
     if (!accountResponse.ok) { setRegistrationError(accountResult.error ?? "No se pudo crear tu cuenta."); setSubmitting(false); return; }
-    const response = await fetch("/api/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modality: registration, waitlist: registration === "presencial" && full, name: form.get("name"), email: form.get("email"), phone: form.get("phone"), attendeeType: student ? "student" : professional ? "professional" : "general", profession: form.get("profession"), license: form.get("license"), institution: form.get("university"), country: form.get("country") || "Guatemala" }) });
+    const response = await fetch("/api/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modality: registration, waitlist: registration === "presencial" && full, name: form.get("name"), email: form.get("email"), phone: form.get("phone"), attendeeType: student ? "student" : professional ? "professional" : "general", profession: form.get("profession"), license: form.get("license"), institution: form.get("university"), country: form.get("country") || "Guatemala", department: form.get("department") }) });
     const result = await response.json();
     if (!response.ok) { if (response.status === 409) { setAvailable(0); setFull(true); } setRegistrationError(result.error ?? "No se pudo completar la inscripción."); setSubmitting(false); return; }
     setAvailable(result.available ?? available);
@@ -90,6 +143,7 @@ export default function Home() {
         </nav>
         <div className="nav-actions">
           <a className={`live ${siteContent.live ? "" : "locked"}`} href="#transmision" aria-label={siteContent.live ? "Ir a la transmisión" : "Transmisión aún no disponible"}><i /> {siteContent.live ? "En vivo · Entrar" : "En vivo · Próximamente"}</a>
+          <Link className="login-link" href="/acceso">Iniciar sesión</Link>
           <button className="primary small" onClick={() => openRegistration("presencial")}>Inscribirme</button>
           <Link className="admin-link" href="/admin" aria-label="Administración">⚙</Link>
         </div>
@@ -164,7 +218,47 @@ export default function Home() {
 
       {selectedSpeaker && <div className="modal-backdrop speaker-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedSpeaker(null); }}><section className="speaker-modal" role="dialog" aria-modal="true" aria-labelledby="speaker-modal-name"><button className="modal-close" aria-label="Cerrar perfil" onClick={() => setSelectedSpeaker(null)}>×</button><div className="speaker-modal-media">{selectedSpeaker.photo_url ? <img src={selectedSpeaker.photo_url} alt={`Fotografía de ${selectedSpeaker.name}`} /> : <div className="speaker-placeholder">{selectedSpeaker.name.slice(0, 1)}</div>}</div><div className="speaker-modal-copy"><p className="section-kicker">{selectedSpeaker.talk_time || "PONENTE"}</p><h2 id="speaker-modal-name">{selectedSpeaker.name}</h2><strong>{selectedSpeaker.professional_title}</strong>{selectedSpeaker.talk_title && <h3>{selectedSpeaker.talk_title}</h3>}<p>{selectedSpeaker.bio || "La semblanza profesional estará disponible próximamente."}</p>{selectedSpeaker.video_url && <video src={selectedSpeaker.video_url} controls preload="metadata" />}</div></section></div>}
 
-      {registration && <div className="modal-backdrop" role="presentation" onMouseDown={() => setRegistration(null)}><div className="registration-modal" role="dialog" aria-modal="true" aria-labelledby="reg-title" onMouseDown={e => e.stopPropagation()}><button className="modal-close" onClick={() => setRegistration(null)} aria-label="Cerrar">×</button>{sent ? <div className="success"><span>✓</span><h2>{alreadyRegistered ? "Ya tenías inscripción." : waitlisted ? "Quedaste en lista de espera." : "Inscripción confirmada."}</h2><p>{alreadyRegistered ? "Tu acceso del encuentro está listo. Ingresa con tu correo y tu teléfono para consultar materiales y descargar tu constancia cuando esté disponible." : waitlisted ? "Registramos tu solicitud. Si se libera un espacio presencial, el equipo organizador podrá contactarte." : "Tu cuenta también quedó creada. Ingresa con tu correo y utiliza tu número de teléfono como contraseña inicial para consultar materiales y descargar tu constancia cuando esté disponible."}</p><Link className="primary" href="/mi-cuenta">Ir a mi cuenta</Link></div> : <><p className="section-kicker">INSCRIPCIÓN</p><h2 id="reg-title">Reserva tu lugar.</h2><p>Al inscribirte crearemos tu cuenta personal. Tu usuario será tu correo electrónico y tu contraseña inicial será tu número de teléfono. La necesitarás para acceder a materiales y descargar tu constancia.</p><form onSubmit={submitRegistration} className="registration-form"><fieldset className="modality-picker"><legend>Selecciona tu asistencia *</legend><label className={registration === "presencial" ? "selected" : ""}><input type="radio" name="modalityChoice" checked={registration === "presencial"} onChange={() => setRegistration("presencial")} /><span><b>Presencial</b><small>{full ? "Cupo lleno · reserva si se libera" : `${available} espacios disponibles de 250`} · incluye coffee break y souvenir de la actividad</small></span></label><label className={registration === "virtual" ? "selected" : ""}><input type="radio" name="modalityChoice" checked={registration === "virtual"} onChange={() => setRegistration("virtual")} /><span><b>Virtual</b><small>Acceso en línea a la jornada y materiales digitales</small></span></label></fieldset><label>Nombre completo *<input required name="name" autoComplete="name" /></label><label>Correo electrónico *<input required type="email" name="email" autoComplete="email" /></label><label>Teléfono / WhatsApp *<input required minLength={8} type="tel" name="phone" autoComplete="tel" /></label><div className="check-row"><label><input type="checkbox" checked={student} onChange={e => { setStudent(e.target.checked); if (e.target.checked) setProfessional(false); }} /> Soy estudiante</label><label><input type="checkbox" checked={professional} onChange={e => { setProfessional(e.target.checked); if (e.target.checked) setStudent(false); }} /> Soy profesional</label></div>{student && <label>Universidad / centro de estudios *<input required name="university" /></label>}{professional && <><label>Profesión *<select required name="profession" defaultValue=""><option value="" disabled>Selecciona una profesión</option><option>Psicología clínica</option><option>Psicología educativa</option><option>Psicología industrial</option><option>Psiquiatría</option><option>Medicina</option><option>Trabajo social</option><option>Orientación</option><option>Otra profesión de salud</option></select></label><label>Número de colegiado *<input required name="license" /></label></>}<label>País *<select required name="country" defaultValue="Guatemala"><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Costa Rica</option><option>México</option><option>Otro</option></select></label><label className="consent"><input required type="checkbox" /> Acepto el tratamiento de mis datos y la creación de mi cuenta de participante.</label>{registrationError && <p className="form-error">{registrationError}</p>}<button className="primary submit" type="submit" disabled={submitting}>{submitting ? "Creando cuenta e inscripción…" : full && registration === "presencial" ? "Crear cuenta y reservar si se libera" : "Crear cuenta e inscribirme"} <span>→</span></button></form></>}</div></div>}
+      {registration && <div className="modal-backdrop" role="presentation" onMouseDown={() => setRegistration(null)}>
+        <div className="registration-modal" role="dialog" aria-modal="true" aria-labelledby="reg-title" onMouseDown={event => event.stopPropagation()}>
+          <button className="modal-close" onClick={() => setRegistration(null)} aria-label="Cerrar">×</button>
+          {sent ? <div className="success"><span>✓</span><h2>{alreadyRegistered ? "Ya tenías inscripción." : waitlisted ? "Quedaste en lista de espera." : "Inscripción confirmada."}</h2><p>{alreadyRegistered ? "Tu acceso del encuentro está listo. Ingresa con tu correo y tu teléfono para consultar materiales y descargar tu constancia cuando esté disponible." : waitlisted ? "Registramos tu solicitud. Si se libera un espacio presencial, el equipo organizador podrá contactarte." : "Tu cuenta también quedó creada. Ingresa con tu correo y utiliza tu número de teléfono como contraseña inicial para consultar materiales y descargar tu constancia cuando esté disponible."}</p><Link className="primary" href="/mi-cuenta">Ir a mi cuenta</Link></div> : <>
+            <p className="section-kicker">INSCRIPCIÓN</p>
+            <h2 id="reg-title">Reserva tu lugar.</h2>
+            <p>Primero verificaremos tu teléfono. Si ya estás inscrito, podrás iniciar sesión desde aquí usando el correo registrado.</p>
+            <form onSubmit={submitRegistration} className="registration-form">
+              <label className="wide-field">Teléfono / WhatsApp *<input required minLength={8} inputMode="numeric" pattern="[0-9]*" type="text" name="phone" autoComplete="tel" onInput={keepOnlyDigits} onBlur={event => checkPhone(event.currentTarget.value)} /></label>
+
+              {phoneLookup.status === "checking" && <div className="registration-notice">Verificando teléfono...</div>}
+              {phoneLookup.status === "found" && <div className="existing-registration">
+                <b>Ya estás inscrito.</b>
+                <p>El correo registrado comienza y termina así: <strong>{phoneLookup.maskedEmail}</strong>. ¿Quieres iniciar sesión?</p>
+                <div className="inline-login">
+                  <label>Correo registrado<input type="email" name="loginEmail" value={loginEmail} onChange={event => setLoginEmail(event.target.value)} autoComplete="email" /></label>
+                  <button className="secondary" type="button" disabled={loginLoading || !loginEmail} onClick={loginFromPhone}>{loginLoading ? "Validando..." : "Iniciar sesión"}</button>
+                </div>
+                <button className="problem-toggle" type="button" onClick={() => setSupportOpen(value => !value)}>Tengo problemas para iniciar sesión</button>
+                {supportOpen && <div className="support-form">
+                  <label>Cuéntanos el problema<textarea name="problem" rows={3} value={supportProblem} onChange={event => setSupportProblem(event.target.value)} placeholder="Ej. No recuerdo qué correo usé o el correo mostrado no coincide." /></label>
+                  <button className="secondary" type="button" disabled={supportProblem.trim().length < 4} onClick={sendSupportProblem}>Enviar problema</button>
+                </div>}
+                {supportSent && <p className="support-sent">Problema enviado. El equipo organizador podrá verlo en el administrador.</p>}
+              </div>}
+
+              <fieldset className="modality-picker"><legend>Selecciona tu asistencia *</legend><label className={registration === "presencial" ? "selected" : ""}><input type="radio" name="modalityChoice" checked={registration === "presencial"} onChange={() => setRegistration("presencial")} /><span><b>Presencial</b><small>{full ? "Cupo lleno · reserva si se libera" : `${available} espacios disponibles de 250`} · incluye coffee break y souvenir de la actividad</small></span></label><label className={registration === "virtual" ? "selected" : ""}><input type="radio" name="modalityChoice" checked={registration === "virtual"} onChange={() => setRegistration("virtual")} /><span><b>Virtual</b><small>Acceso en línea a la jornada y materiales digitales</small></span></label></fieldset>
+              <label>Nombre completo *<input required name="name" autoComplete="name" /></label>
+              <label>Correo electrónico *<input required type="email" name="email" autoComplete="email" /></label>
+              <div className="check-row"><label><input type="checkbox" checked={student} onChange={event => { setStudent(event.target.checked); if (event.target.checked) setProfessional(false); }} /> Soy estudiante</label><label><input type="checkbox" checked={professional} onChange={event => { setProfessional(event.target.checked); if (event.target.checked) setStudent(false); }} /> Soy profesional</label></div>
+              {student && <label>Universidad / centro de estudios *<input required name="university" /></label>}
+              {professional && <><label>Profesión *<select required name="profession" defaultValue=""><option value="" disabled>Selecciona una profesión</option><option>Psicología clínica</option><option>Psicología educativa</option><option>Psicología industrial</option><option>Psiquiatría</option><option>Medicina</option><option>Trabajo social</option><option>Orientación</option><option>Otra profesión de salud</option></select></label><label>Número de colegiado *<input required inputMode="numeric" pattern="[0-9]*" name="license" onInput={keepOnlyDigits} /></label></>}
+              <label>País *<select required name="country" defaultValue="Guatemala"><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Costa Rica</option><option>México</option><option>Otro</option></select></label>
+              {registration === "virtual" && <label>Departamento *<select required name="department" defaultValue=""><option value="" disabled>Selecciona departamento</option>{guatemalaDepartments.map(department => <option key={department}>{department}</option>)}</select></label>}
+              <label className="consent"><input required type="checkbox" /> Acepto el tratamiento de mis datos y la creación de mi cuenta de participante.</label>
+              {registrationError && <p className="form-error">{registrationError}</p>}
+              <button className="primary submit" type="submit" disabled={submitting}>{submitting ? "Creando cuenta e inscripción..." : full && registration === "presencial" ? "Crear cuenta y reservar si se libera" : "Crear cuenta e inscribirme"} <span>→</span></button>
+            </form>
+          </>}
+        </div>
+      </div>}
     </main>
   );
 }
