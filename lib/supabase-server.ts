@@ -3,7 +3,8 @@ const secretKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVIC
 
 function configuration() {
   if (!projectUrl || !secretKey) {
-    throw new Error("Falta configurar SUPABASE_URL y SUPABASE_SECRET_KEY en el servidor.");
+    const missing = [!projectUrl && "SUPABASE_URL", !secretKey && "SUPABASE_SECRET_KEY"].filter(Boolean).join(", ");
+    throw new Error(`Falta configurar: ${missing}.`);
   }
   return { projectUrl: projectUrl.trim().replace(/\/$/, ""), secretKey: secretKey.trim() };
 }
