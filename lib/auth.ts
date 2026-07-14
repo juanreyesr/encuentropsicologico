@@ -9,7 +9,7 @@ export type AuthUser = { id: string; email: string; app_metadata?: Record<string
 
 async function authFetch(path: string, init: RequestInit = {}, accessToken?: string) {
   const { projectUrl, secretKey } = supabaseServerConfiguration();
-  return fetch(`${projectUrl}/auth/v1/${path}`, { ...init, headers: { apikey: secretKey, Authorization: `Bearer ${accessToken ?? secretKey}`, "Content-Type": "application/json", ...(init.headers ?? {}) }, cache: "no-store" });
+  return fetch(`${projectUrl}/auth/v1/${path}`, { ...init, headers: { apikey: secretKey, ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}), "Content-Type": "application/json", ...(init.headers ?? {}) }, cache: "no-store" });
 }
 
 export async function signIn(email: string, password: string) {
