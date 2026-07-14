@@ -1,0 +1,1 @@
+ALTER TABLE `registrations` ADD `status` text DEFAULT 'confirmed' NOT NULL;

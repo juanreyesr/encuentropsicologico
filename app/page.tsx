@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 const agenda = [
   { time: "8:30–9:00", type: "Registro", title: "Registro e inscripciones", speaker: "Recepción de participantes" },
@@ -29,12 +29,25 @@ export default function Home() {
   const [professional, setProfessional] = useState(false);
   const [student, setStudent] = useState(false);
   const [sent, setSent] = useState(false);
+  const [available, setAvailable] = useState(250);
+  const [full, setFull] = useState(false);
+  const [waitlisted, setWaitlisted] = useState(false);
   const visibleAgenda = agenda;
+  const daysRemaining = Math.max(0, Math.ceil((new Date("2026-08-15T08:30:00-06:00").getTime() - Date.now()) / 86400000));
+
+  useEffect(() => {
+    fetch("/api/registrations").then(response => response.json()).then(data => { setAvailable(data.available); setFull(data.full); }).catch(() => undefined);
+  }, []);
 
   async function submitRegistration(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    await fetch("/api/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modality: registration, name: form.get("name"), email: form.get("email"), phone: form.get("phone"), attendeeType: student ? "student" : professional ? "professional" : "general", profession: form.get("profession"), license: form.get("license"), institution: form.get("university"), country: form.get("country") || "Guatemala" }) });
+    const response = await fetch("/api/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modality: registration, waitlist: registration === "presencial" && full, name: form.get("name"), email: form.get("email"), phone: form.get("phone"), attendeeType: student ? "student" : professional ? "professional" : "general", profession: form.get("profession"), license: form.get("license"), institution: form.get("university"), country: form.get("country") || "Guatemala" }) });
+    const result = await response.json();
+    if (response.status === 409) { setAvailable(0); setFull(true); return; }
+    setAvailable(result.available ?? available);
+    setFull((result.available ?? available) === 0);
+    setWaitlisted(Boolean(result.waitlisted));
     setSent(true);
   }
 
@@ -65,14 +78,11 @@ export default function Home() {
             <button className="primary" onClick={() => setRegistration("presencial")}>Vivirlo presencial <span>↗</span></button>
             <button className="secondary" onClick={() => setRegistration("virtual")}>Participar en línea <span>→</span></button>
           </div>
+          <button className={`seat-availability ${full ? "is-full" : ""}`} onClick={() => setRegistration("presencial")}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Reserva tu espacio si se libera" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de 250`}</span></button>
           <div className="hero-meta"><span><b>01</b> jornada</span><span><b>06</b> ponentes</span><span><b>3.5</b> horas</span></div>
+          <div className="countdown"><span>Faltan</span><b>{daysRemaining}</b><span>días para la jornada</span></div>
         </div>
-        <div className="hero-stage" aria-label="Conferencia magistral ante una audiencia">
-          <div className="arch arch-1" /><div className="arch arch-2" /><div className="stage-light" />
-          <div className="speaker-figure"><span className="head" /><span className="body" /></div>
-          <div className="audience"><i /><i /><i /><i /><i /><i /><i /><i /></div>
-          <div className="stage-caption"><span>15</span><p>AGOSTO 2026<br /><b>Modalidad híbrida · alcance nacional</b></p></div>
-        </div>
+        <div className="hero-stage activity-art" aria-label="Banner de Cuando el Duelo se Detiene"><img src="/og.png" alt="Cuando el Duelo se Detiene, Jornada Clínica sobre Duelo Prolongado, 15 de agosto de 2026 en Chimaltenango" /></div>
         <a className="scroll-hint" href="#encuentro">Descubrir <span>↓</span></a>
       </section>
 
@@ -101,7 +111,7 @@ export default function Home() {
       <section id="inscripciones" className="formats section-pad">
         <div className="center-head"><p className="section-kicker">ELIGE CÓMO VIVIRLO</p><h2>Una experiencia.<br /><em>Dos formas de estar.</em></h2></div>
         <div className="format-grid">
-          <article className="format-card featured"><span className="format-label">PRESENCIAL</span><div className="format-symbol">◉</div><h3>Vívelo en Chimaltenango.</h3><p>Participa en la jornada, el panel de preguntas y el encuentro interdisciplinario.</p><ul><li>Seis charlas clínicas breves</li><li>Panel con los seis ponentes</li><li>Espacio de conexión profesional</li><li>Constancia según perfil</li></ul><button className="primary" onClick={() => setRegistration("presencial")}>Inscripción presencial <span>→</span></button></article>
+          <article className="format-card featured"><span className="format-label">PRESENCIAL</span><div className="format-symbol">◉</div><h3>Vívelo en Chimaltenango.</h3><p>Participa en la jornada, el panel de preguntas y el encuentro interdisciplinario.</p><div className={`format-capacity ${full ? "is-full" : ""}`}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Lista de espera disponible" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de 250`}</span></div><ul><li>Seis charlas clínicas breves</li><li>Panel con los seis ponentes</li><li>Espacio de conexión profesional</li><li>Constancia según perfil</li></ul><button className="primary" onClick={() => setRegistration("presencial")}>{full ? "Reservar si se libera" : "Inscripción presencial"} <span>→</span></button></article>
           <article className="format-card"><span className="format-label">VIRTUAL</span><div className="format-symbol">◎</div><h3>Conéctate desde donde estés.</h3><p>Sigue la jornada en directo con el mismo contenido científico.</p><ul><li>Transmisión en vivo</li><li>Acceso a las seis charlas</li><li>Biblioteca digital</li><li>Constancia según perfil</li></ul><button className="secondary" onClick={() => setRegistration("virtual")}>Inscripción virtual <span>→</span></button></article>
         </div>
       </section>

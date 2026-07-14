@@ -18,5 +18,6 @@ export const registrations = sqliteTable("registrations", {
   license: text("license"),
   institution: text("institution"),
   country: text("country").notNull(),
+  status: text("status").notNull().default("confirmed"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
