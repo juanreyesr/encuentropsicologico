@@ -1,30 +1,42 @@
-import { env } from "cloudflare:workers";
+import { supabaseServerFetch } from "../../../lib/supabase-server";
 
 const CAPACITY = 250;
 
+async function availability() {
+  const response = await supabaseServerFetch("encuentro_psicologico_registrations?select=id&modality=eq.presencial&status=eq.confirmed", {
+    headers: { Prefer: "count=exact", Range: "0-0" },
+  });
+  if (!response.ok) throw new Error("No se pudo consultar el cupo presencial.");
+  const total = Number(response.headers.get("content-range")?.split("/")[1] ?? 0);
+  return { capacity: CAPACITY, confirmed: total, available: Math.max(0, CAPACITY - total), full: total >= CAPACITY };
+}
+
 export async function GET() {
-  const row = await env.DB.prepare("SELECT COUNT(*) AS confirmed FROM registrations WHERE modality = 'presencial' AND status = 'confirmed'").first<{ confirmed: number }>();
-  const confirmed = Number(row?.confirmed ?? 0);
-  return Response.json({ capacity: CAPACITY, confirmed, available: Math.max(0, CAPACITY - confirmed), full: confirmed >= CAPACITY });
+  try { return Response.json(await availability()); }
+  catch { return Response.json({ error: "No fue posible consultar los espacios disponibles." }, { status: 503 }); }
 }
 
 export async function POST(request: Request) {
   const data = await request.json() as Record<string, string | boolean>;
   if (!data.name || !data.email || !data.phone || !data.modality) return Response.json({ error: "Faltan datos requeridos" }, { status: 400 });
 
-  const values = [data.modality, data.name, data.email, data.phone, data.attendeeType || "general", data.profession || null, data.license || null, data.institution || null, data.country || "Guatemala"];
-
-  if (data.modality === "presencial" && !data.waitlist) {
-    const result = await env.DB.prepare(`INSERT INTO registrations (modality,name,email,phone,attendee_type,profession,license,institution,country,status)
-      SELECT ?,?,?,?,?,?,?,?,?, 'confirmed'
-      WHERE (SELECT COUNT(*) FROM registrations WHERE modality = 'presencial' AND status = 'confirmed') < ?`).bind(...values, CAPACITY).run();
-    if (!result.meta.changes) return Response.json({ full: true, available: 0 }, { status: 409 });
-  } else {
-    const status = data.modality === "presencial" ? "waitlist" : "confirmed";
-    await env.DB.prepare("INSERT INTO registrations (modality,name,email,phone,attendee_type,profession,license,institution,country,status) VALUES (?,?,?,?,?,?,?,?,?,?)").bind(...values, status).run();
-  }
-
-  const row = await env.DB.prepare("SELECT COUNT(*) AS confirmed FROM registrations WHERE modality = 'presencial' AND status = 'confirmed'").first<{ confirmed: number }>();
-  const available = Math.max(0, CAPACITY - Number(row?.confirmed ?? 0));
-  return Response.json({ ok: true, waitlisted: Boolean(data.waitlist), available });
+  const response = await supabaseServerFetch("rpc/encuentro_psicologico_register", {
+    method: "POST",
+    body: JSON.stringify({
+      p_modality: data.modality,
+      p_name: data.name,
+      p_email: data.email,
+      p_phone: data.phone,
+      p_attendee_type: data.attendeeType || "general",
+      p_profession: data.profession || null,
+      p_license: data.license || null,
+      p_institution: data.institution || null,
+      p_country: data.country || "Guatemala",
+      p_waitlist: Boolean(data.waitlist),
+    }),
+  });
+  if (!response.ok) return Response.json({ error: "No fue posible completar la inscripción." }, { status: 503 });
+  const result = await response.json() as { status: string; available: number };
+  if (result.status === "full") return Response.json({ full: true, available: 0 }, { status: 409 });
+  return Response.json({ ok: true, waitlisted: result.status === "waitlist", available: result.available });
 }
