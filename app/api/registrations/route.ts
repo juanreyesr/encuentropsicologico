@@ -22,6 +22,7 @@ export async function POST(request: Request) {
   if (!user) return Response.json({ error: "Debes crear tu cuenta antes de inscribirte." }, { status: 401 });
   const data = await request.json() as Record<string, string | boolean>;
   if (!data.name || !data.email || !data.phone || !data.modality) return Response.json({ error: "Faltan datos requeridos" }, { status: 400 });
+  if (data.modality !== "presencial" && data.modality !== "virtual") return Response.json({ error: "Selecciona si tu asistencia será presencial o virtual." }, { status: 400 });
 
   const response = await supabaseServerFetch("rpc/encuentro_psicologico_register", {
     method: "POST",
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     }),
   });
   if (!response.ok) return Response.json({ error: "No fue posible completar la inscripción." }, { status: 503 });
-  const result = await response.json() as { status: string; available: number };
+  const result = await response.json() as { status: string; available: number; registration_status?: string };
   if (result.status === "full") return Response.json({ full: true, available: 0 }, { status: 409 });
-  return Response.json({ ok: true, waitlisted: result.status === "waitlist", available: result.available });
+  return Response.json({ ok: true, alreadyRegistered: result.status === "already_registered", waitlisted: result.status === "waitlist" || result.registration_status === "waitlist", available: result.available });
 }

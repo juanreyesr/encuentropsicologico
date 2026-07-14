@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import type { EventSpeaker } from "../../lib/event";
 
 type DashboardData = {
@@ -39,7 +40,22 @@ export default function AdminDashboard({ userName }: { userName: string }) {
     setLoading(false);
   }
 
-  useEffect(() => { void loadAll(); }, []);
+  useEffect(() => {
+    let ignore = false;
+    Promise.all([fetch("/api/admin/dashboard"), fetch("/api/admin/speakers"), fetch("/api/admin/content")]).then(async ([dashboardResponse, speakersResponse, contentResponse]) => {
+      if (ignore) return;
+      if (dashboardResponse.ok) setDashboard(await dashboardResponse.json());
+      if (speakersResponse.ok) setSpeakers((await speakersResponse.json()).speakers);
+      if (contentResponse.ok) {
+        const saved = await contentResponse.json();
+        setContent(current => ({ ...current, ...saved, live: Boolean(saved.live) }));
+      }
+      setLoading(false);
+    }).catch(() => {
+      if (!ignore) setLoading(false);
+    });
+    return () => { ignore = true; };
+  }, []);
 
   function flash(text: string) { setMessage(text); window.setTimeout(() => setMessage(""), 3500); }
 
@@ -91,12 +107,12 @@ export default function AdminDashboard({ userName }: { userName: string }) {
   const navIcons = ["◇", "✎", "◉", "▶"];
   return <main className="admin-shell">
     <aside className="admin-sidebar">
-      <a className="admin-brand" href="/"><span className="brand-mark">EC</span><b>Encuentro Clínico</b></a>
+      <Link className="admin-brand" href="/"><span className="brand-mark">EC</span><b>Encuentro Clínico</b></Link>
       <nav>{sections.map((item, index) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}><span>{navIcons[index]}</span>{item}{item === "Ponentes" && speakers.length > 0 && <i>{speakers.length}</i>}</button>)}</nav>
       <div className="admin-user"><span>{userName.slice(0, 2).toUpperCase()}</span><div><b>{userName}</b><small>Administrador</small></div><form action="/api/auth/logout" method="post"><button aria-label="Cerrar sesión">→</button></form></div>
     </aside>
     <section className="admin-main">
-      <header><div><p>Panel de administración</p><h1>{active}</h1></div><div className="admin-header-actions"><a href="/" target="_blank">Ver sitio ↗</a>{active !== "Resumen" && <button className="admin-save" disabled={saving} onClick={active === "Ponentes" ? saveSpeaker : saveContent}>{saving ? "Guardando…" : "Guardar cambios"}</button>}</div></header>
+      <header><div><p>Panel de administración</p><h1>{active}</h1></div><div className="admin-header-actions"><Link href="/" target="_blank">Ver sitio ↗</Link>{active !== "Resumen" && <button className="admin-save" disabled={saving} onClick={active === "Ponentes" ? saveSpeaker : saveContent}>{saving ? "Guardando…" : "Guardar cambios"}</button>}</div></header>
       {message && <div className="admin-toast" role="status">{message}</div>}
       {active === "Resumen" && <div className="admin-content">
         <div className="welcome"><div><p>ESTADO DEL EVENTO</p><h2>Información real,<br />lista para trabajar.</h2><span>{loading ? "Actualizando información…" : dashboard.daysRemaining > 0 ? `Faltan ${dashboard.daysRemaining} días para el evento.` : "La fecha del evento ha llegado."}</span></div><div className="event-ring"><b>{loading ? "—" : dashboard.daysRemaining}</b><small>DÍAS</small></div></div>

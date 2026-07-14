@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import type { EventSpeaker } from "../lib/event";
 import { EVENT_START } from "../lib/event";
 
@@ -22,6 +23,7 @@ export default function Home() {
   const [professional, setProfessional] = useState(false);
   const [student, setStudent] = useState(false);
   const [sent, setSent] = useState(false);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [available, setAvailable] = useState(250);
   const [full, setFull] = useState(false);
   const [waitlisted, setWaitlisted] = useState(false);
@@ -30,13 +32,17 @@ export default function Home() {
   const [speakers, setSpeakers] = useState<EventSpeaker[]>([]);
   const [selectedSpeaker, setSelectedSpeaker] = useState<EventSpeaker | null>(null);
   const [siteContent, setSiteContent] = useState({ title: "Cuando el Duelo se Detiene", date: "15 DE AGOSTO 2026", place: "CHIMALTENANGO", description: "Jornada Clínica sobre Duelo Prolongado. Seis miradas para comprender su diagnóstico, impacto corporal y abordaje terapéutico, familiar, psiquiátrico y comunitario.", live: false });
+  const [daysRemaining, setDaysRemaining] = useState(0);
   const visibleAgenda = agenda;
-  const daysRemaining = Math.max(0, Math.ceil((new Date(EVENT_START).getTime() - Date.now()) / 86400000));
 
   useEffect(() => {
     fetch("/api/registrations").then(response => response.json()).then(data => { setAvailable(data.available); setFull(data.full); }).catch(() => undefined);
     fetch("/api/speakers").then(response => response.json()).then(data => setSpeakers(data.speakers ?? [])).catch(() => undefined);
     fetch("/api/content").then(response => response.json()).then(data => setSiteContent(current => ({ ...current, ...data, live: Boolean(data.live) }))).catch(() => undefined);
+    const updateDays = () => setDaysRemaining(Math.max(0, Math.ceil((new Date(EVENT_START).getTime() - Date.now()) / 86400000)));
+    const timeout = window.setTimeout(updateDays, 0);
+    const interval = window.setInterval(updateDays, 60 * 60 * 1000);
+    return () => { window.clearTimeout(timeout); window.clearInterval(interval); };
   }, []);
 
   useEffect(() => {
@@ -46,9 +52,17 @@ export default function Home() {
     return () => { document.removeEventListener("keydown", close); document.body.style.overflow = ""; };
   }, [selectedSpeaker]);
 
+  function openRegistration(modality: "presencial" | "virtual") {
+    setSent(false);
+    setAlreadyRegistered(false);
+    setWaitlisted(false);
+    setRegistrationError("");
+    setRegistration(modality);
+  }
+
   async function submitRegistration(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitting(true); setRegistrationError("");
+    setSubmitting(true); setRegistrationError(""); setAlreadyRegistered(false);
     const form = new FormData(event.currentTarget);
     const accountResponse = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: form.get("name"), email: form.get("email"), phone: form.get("phone") }) });
     const accountResult = await accountResponse.json();
@@ -59,6 +73,7 @@ export default function Home() {
     setAvailable(result.available ?? available);
     setFull((result.available ?? available) === 0);
     setWaitlisted(Boolean(result.waitlisted));
+    setAlreadyRegistered(Boolean(result.alreadyRegistered));
     setSent(true);
     setSubmitting(false);
   }
@@ -75,8 +90,8 @@ export default function Home() {
         </nav>
         <div className="nav-actions">
           <a className={`live ${siteContent.live ? "" : "locked"}`} href="#transmision" aria-label={siteContent.live ? "Ir a la transmisión" : "Transmisión aún no disponible"}><i /> {siteContent.live ? "En vivo · Entrar" : "En vivo · Próximamente"}</a>
-          <button className="primary small" onClick={() => setRegistration("presencial")}>Inscribirme</button>
-          <a className="admin-link" href="/admin" aria-label="Administración">⚙</a>
+          <button className="primary small" onClick={() => openRegistration("presencial")}>Inscribirme</button>
+          <Link className="admin-link" href="/admin" aria-label="Administración">⚙</Link>
         </div>
       </header>
 
@@ -87,10 +102,10 @@ export default function Home() {
           <h1>{siteContent.title.includes(" se ") ? <>{siteContent.title.split(" se ")[0]}<br /><em>se {siteContent.title.split(" se ").slice(1).join(" se ").toLowerCase()}.</em></> : siteContent.title}</h1>
           <p className="hero-copy">{siteContent.description}</p>
           <div className="hero-actions">
-            <button className="primary" onClick={() => setRegistration("presencial")}>Vivirlo presencial <span>↗</span></button>
-            <button className="secondary" onClick={() => setRegistration("virtual")}>Participar en línea <span>→</span></button>
+            <button className="primary" onClick={() => openRegistration("presencial")}>Vivirlo presencial <span>↗</span></button>
+            <button className="secondary" onClick={() => openRegistration("virtual")}>Participar en línea <span>→</span></button>
           </div>
-          <button className={`seat-availability ${full ? "is-full" : ""}`} onClick={() => setRegistration("presencial")}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Reserva tu espacio si se libera" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de 250`}</span></button>
+          <button className={`seat-availability ${full ? "is-full" : ""}`} onClick={() => openRegistration("presencial")}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Reserva tu espacio si se libera" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de 250`}</span></button>
           <div className="hero-meta"><span><b>01</b> jornada</span><span><b>06</b> ponentes</span><span><b>3.5</b> horas</span></div>
           <div className="countdown"><span>Faltan</span><b>{daysRemaining}</b><span>días para la jornada</span></div>
         </div>
@@ -123,8 +138,8 @@ export default function Home() {
       <section id="inscripciones" className="formats section-pad">
         <div className="center-head"><p className="section-kicker">ELIGE CÓMO VIVIRLO</p><h2>Una experiencia.<br /><em>Dos formas de estar.</em></h2></div>
         <div className="format-grid">
-          <article className="format-card featured"><span className="format-label">PRESENCIAL</span><div className="format-symbol">◉</div><h3>Vívelo en Chimaltenango.</h3><p>Participa en la jornada, el panel de preguntas y el encuentro interdisciplinario.</p><div className={`format-capacity ${full ? "is-full" : ""}`}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Lista de espera disponible" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de 250`}</span></div><ul><li>Seis charlas clínicas breves</li><li>Panel con los seis ponentes</li><li>Espacio de conexión profesional</li><li>Constancia según perfil</li></ul><button className="primary" onClick={() => setRegistration("presencial")}>{full ? "Reservar si se libera" : "Inscripción presencial"} <span>→</span></button></article>
-          <article className="format-card"><span className="format-label">VIRTUAL</span><div className="format-symbol">◎</div><h3>Conéctate desde donde estés.</h3><p>Sigue la jornada en directo con el mismo contenido científico.</p><ul><li>Transmisión en vivo</li><li>Acceso a las seis charlas</li><li>Biblioteca digital</li><li>Constancia según perfil</li></ul><button className="secondary" onClick={() => setRegistration("virtual")}>Inscripción virtual <span>→</span></button></article>
+          <article className="format-card featured"><span className="format-label">PRESENCIAL</span><div className="format-symbol">◉</div><h3>Vívelo en Chimaltenango.</h3><p>Participa en la jornada, el panel de preguntas y el encuentro interdisciplinario.</p><div className={`format-capacity ${full ? "is-full" : ""}`}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Lista de espera disponible" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de 250`}</span></div><ul><li>Seis charlas clínicas breves</li><li>Panel con los seis ponentes</li><li>Coffee break incluido</li><li>Souvenir de la actividad</li><li>Constancia según perfil</li></ul><button className="primary" onClick={() => openRegistration("presencial")}>{full ? "Reservar si se libera" : "Inscripción presencial"} <span>→</span></button></article>
+          <article className="format-card"><span className="format-label">VIRTUAL</span><div className="format-symbol">◎</div><h3>Conéctate desde donde estés.</h3><p>Sigue la jornada en directo con el mismo contenido científico.</p><ul><li>Transmisión en vivo</li><li>Acceso a las seis charlas</li><li>Biblioteca digital</li><li>Constancia según perfil</li></ul><button className="secondary" onClick={() => openRegistration("virtual")}>Inscripción virtual <span>→</span></button></article>
         </div>
       </section>
 
@@ -145,11 +160,11 @@ export default function Home() {
 
       <section className="partners section-pad"><p className="section-kicker">HACEN POSIBLE ESTE ENCUENTRO</p><h2>Aliados por la salud mental.</h2><div className="public-empty"><span>CONVOCATORIA ABIERTA</span><h3>Patrocinadores por anunciar.</h3><p>Las organizaciones confirmadas aparecerán aquí.</p></div><a href="mailto:alianzas@encuentroclinico.org">Quiero ser patrocinador <span>→</span></a></section>
 
-      <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => setRegistration("presencial")}>Inscripción presencial</button><button onClick={() => setRegistration("virtual")}>Inscripción virtual</button><a href="mailto:alianzas@encuentroclinico.org">Patrocinios</a><a href="/admin">Administración</a></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
+      <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => openRegistration("presencial")}>Inscripción presencial</button><button onClick={() => openRegistration("virtual")}>Inscripción virtual</button><a href="mailto:alianzas@encuentroclinico.org">Patrocinios</a><Link href="/admin">Administración</Link></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
 
       {selectedSpeaker && <div className="modal-backdrop speaker-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedSpeaker(null); }}><section className="speaker-modal" role="dialog" aria-modal="true" aria-labelledby="speaker-modal-name"><button className="modal-close" aria-label="Cerrar perfil" onClick={() => setSelectedSpeaker(null)}>×</button><div className="speaker-modal-media">{selectedSpeaker.photo_url ? <img src={selectedSpeaker.photo_url} alt={`Fotografía de ${selectedSpeaker.name}`} /> : <div className="speaker-placeholder">{selectedSpeaker.name.slice(0, 1)}</div>}</div><div className="speaker-modal-copy"><p className="section-kicker">{selectedSpeaker.talk_time || "PONENTE"}</p><h2 id="speaker-modal-name">{selectedSpeaker.name}</h2><strong>{selectedSpeaker.professional_title}</strong>{selectedSpeaker.talk_title && <h3>{selectedSpeaker.talk_title}</h3>}<p>{selectedSpeaker.bio || "La semblanza profesional estará disponible próximamente."}</p>{selectedSpeaker.video_url && <video src={selectedSpeaker.video_url} controls preload="metadata" />}</div></section></div>}
 
-      {registration && <div className="modal-backdrop" role="presentation" onMouseDown={() => setRegistration(null)}><div className="registration-modal" role="dialog" aria-modal="true" aria-labelledby="reg-title" onMouseDown={e => e.stopPropagation()}><button className="modal-close" onClick={() => setRegistration(null)} aria-label="Cerrar">×</button>{sent ? <div className="success"><span>✓</span><h2>Inscripción confirmada.</h2><p>Tu cuenta también quedó creada. Ingresa con tu correo y utiliza tu número de teléfono como contraseña inicial para consultar materiales y descargar tu constancia cuando esté disponible.</p><a className="primary" href="/mi-cuenta">Ir a mi cuenta</a></div> : <><p className="section-kicker">INSCRIPCIÓN {registration.toUpperCase()}</p><h2 id="reg-title">Reserva tu lugar.</h2><p>Al inscribirte crearemos tu cuenta personal. Tu usuario será tu correo electrónico y tu contraseña inicial será tu número de teléfono. La necesitarás para acceder a materiales y descargar tu constancia.</p><form onSubmit={submitRegistration} className="registration-form"><label>Nombre completo *<input required name="name" autoComplete="name" /></label><label>Correo electrónico *<input required type="email" name="email" autoComplete="email" /></label><label>Teléfono / WhatsApp *<input required minLength={8} type="tel" name="phone" autoComplete="tel" /></label><div className="check-row"><label><input type="checkbox" checked={student} onChange={e => { setStudent(e.target.checked); if (e.target.checked) setProfessional(false); }} /> Soy estudiante</label><label><input type="checkbox" checked={professional} onChange={e => { setProfessional(e.target.checked); if (e.target.checked) setStudent(false); }} /> Soy profesional</label></div>{student && <label>Universidad / centro de estudios *<input required name="university" /></label>}{professional && <><label>Profesión *<select required name="profession" defaultValue=""><option value="" disabled>Selecciona una profesión</option><option>Psicología clínica</option><option>Psicología educativa</option><option>Psicología industrial</option><option>Psiquiatría</option><option>Medicina</option><option>Trabajo social</option><option>Orientación</option><option>Otra profesión de salud</option></select></label><label>Número de colegiado *<input required name="license" /></label></>}<label>País *<select required name="country" defaultValue="Guatemala"><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Costa Rica</option><option>México</option><option>Otro</option></select></label><label className="consent"><input required type="checkbox" /> Acepto el tratamiento de mis datos y la creación de mi cuenta de participante.</label>{registrationError && <p className="form-error">{registrationError}</p>}<button className="primary submit" type="submit" disabled={submitting}>{submitting ? "Creando cuenta e inscripción…" : "Crear cuenta e inscribirme"} <span>→</span></button></form></>}</div></div>}
+      {registration && <div className="modal-backdrop" role="presentation" onMouseDown={() => setRegistration(null)}><div className="registration-modal" role="dialog" aria-modal="true" aria-labelledby="reg-title" onMouseDown={e => e.stopPropagation()}><button className="modal-close" onClick={() => setRegistration(null)} aria-label="Cerrar">×</button>{sent ? <div className="success"><span>✓</span><h2>{alreadyRegistered ? "Ya tenías inscripción." : waitlisted ? "Quedaste en lista de espera." : "Inscripción confirmada."}</h2><p>{alreadyRegistered ? "Tu acceso del encuentro está listo. Ingresa con tu correo y tu teléfono para consultar materiales y descargar tu constancia cuando esté disponible." : waitlisted ? "Registramos tu solicitud. Si se libera un espacio presencial, el equipo organizador podrá contactarte." : "Tu cuenta también quedó creada. Ingresa con tu correo y utiliza tu número de teléfono como contraseña inicial para consultar materiales y descargar tu constancia cuando esté disponible."}</p><Link className="primary" href="/mi-cuenta">Ir a mi cuenta</Link></div> : <><p className="section-kicker">INSCRIPCIÓN</p><h2 id="reg-title">Reserva tu lugar.</h2><p>Al inscribirte crearemos tu cuenta personal. Tu usuario será tu correo electrónico y tu contraseña inicial será tu número de teléfono. La necesitarás para acceder a materiales y descargar tu constancia.</p><form onSubmit={submitRegistration} className="registration-form"><fieldset className="modality-picker"><legend>Selecciona tu asistencia *</legend><label className={registration === "presencial" ? "selected" : ""}><input type="radio" name="modalityChoice" checked={registration === "presencial"} onChange={() => setRegistration("presencial")} /><span><b>Presencial</b><small>{full ? "Cupo lleno · reserva si se libera" : `${available} espacios disponibles de 250`} · incluye coffee break y souvenir de la actividad</small></span></label><label className={registration === "virtual" ? "selected" : ""}><input type="radio" name="modalityChoice" checked={registration === "virtual"} onChange={() => setRegistration("virtual")} /><span><b>Virtual</b><small>Acceso en línea a la jornada y materiales digitales</small></span></label></fieldset><label>Nombre completo *<input required name="name" autoComplete="name" /></label><label>Correo electrónico *<input required type="email" name="email" autoComplete="email" /></label><label>Teléfono / WhatsApp *<input required minLength={8} type="tel" name="phone" autoComplete="tel" /></label><div className="check-row"><label><input type="checkbox" checked={student} onChange={e => { setStudent(e.target.checked); if (e.target.checked) setProfessional(false); }} /> Soy estudiante</label><label><input type="checkbox" checked={professional} onChange={e => { setProfessional(e.target.checked); if (e.target.checked) setStudent(false); }} /> Soy profesional</label></div>{student && <label>Universidad / centro de estudios *<input required name="university" /></label>}{professional && <><label>Profesión *<select required name="profession" defaultValue=""><option value="" disabled>Selecciona una profesión</option><option>Psicología clínica</option><option>Psicología educativa</option><option>Psicología industrial</option><option>Psiquiatría</option><option>Medicina</option><option>Trabajo social</option><option>Orientación</option><option>Otra profesión de salud</option></select></label><label>Número de colegiado *<input required name="license" /></label></>}<label>País *<select required name="country" defaultValue="Guatemala"><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Costa Rica</option><option>México</option><option>Otro</option></select></label><label className="consent"><input required type="checkbox" /> Acepto el tratamiento de mis datos y la creación de mi cuenta de participante.</label>{registrationError && <p className="form-error">{registrationError}</p>}<button className="primary submit" type="submit" disabled={submitting}>{submitting ? "Creando cuenta e inscripción…" : full && registration === "presencial" ? "Crear cuenta y reservar si se libera" : "Crear cuenta e inscribirme"} <span>→</span></button></form></>}</div></div>}
     </main>
   );
 }

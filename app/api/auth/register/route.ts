@@ -1,4 +1,4 @@
-import { createParticipant, signIn } from "../../../../lib/auth";
+import { createParticipant, findAuthUserIdByEmail, signIn, startParticipantSession } from "../../../../lib/auth";
 
 export async function POST(request: Request) {
  try {
@@ -9,8 +9,13 @@ export async function POST(request: Request) {
   let user = await signIn(email, phone);
   if (!user) {
     const created = await createParticipant(email, phone, { full_name: data.name, phone });
-    if (!created) return Response.json({ error: "Este correo ya tiene una cuenta. Inicia sesión con el teléfono utilizado originalmente." }, { status: 409 });
-    user = await signIn(email, phone);
+    if (created) user = await signIn(email, phone);
+    else {
+      const existingUserId = await findAuthUserIdByEmail(email);
+      if (!existingUserId) return Response.json({ error: "No se pudo crear la cuenta de participante." }, { status: 503 });
+      user = { id: existingUserId, email, app_metadata: { encuentro_psicologico_role: "participant" }, eventOnly: true };
+      await startParticipantSession(user);
+    }
   }
   if (!user) return Response.json({ error: "No se pudo iniciar la sesión creada." }, { status: 503 });
   return Response.json({ ok: true, user: { email: user.email } });
