@@ -1,6 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import type { EventSpeaker } from "../lib/event";
+import { EVENT_START } from "../lib/event";
 
 const agenda = [
   { time: "8:30–9:00", type: "Registro", title: "Registro e inscripciones", speaker: "Recepción de participantes" },
@@ -15,15 +17,6 @@ const agenda = [
   { time: "11:25–12:00", type: "Cierre", title: "Panel de preguntas y entrega de constancias", speaker: "Conversación con los 6 ponentes · cierre institucional" },
 ];
 
-const speakers = [
-  { initials: "01", name: "Diagnóstico", role: "Eje clínico", topic: "Duelo normal vs. trastorno de duelo prolongado", color: "violet" },
-  { initials: "02", name: "Impacto corporal", role: "Eje clínico", topic: "Somatización del duelo no resuelto", color: "gold" },
-  { initials: "03", name: "Manejo terapéutico", role: "Eje clínico", topic: "Intervención clínica individual", color: "coral" },
-  { initials: "04", name: "Manejo familiar", role: "Eje sistémico", topic: "El sistema familiar frente al duelo detenido", color: "gold" },
-  { initials: "05", name: "Psiquiatría", role: "Eje interdisciplinario", topic: "Cuándo se requiere manejo farmacológico", color: "violet" },
-  { initials: "06", name: "Cierre comunitario", role: "Eje comunitario", topic: "Resiliencia y rol del psicólogo local", color: "coral" },
-];
-
 export default function Home() {
   const [registration, setRegistration] = useState<"presencial" | "virtual" | null>(null);
   const [professional, setProfessional] = useState(false);
@@ -34,12 +27,24 @@ export default function Home() {
   const [waitlisted, setWaitlisted] = useState(false);
   const [registrationError, setRegistrationError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [speakers, setSpeakers] = useState<EventSpeaker[]>([]);
+  const [selectedSpeaker, setSelectedSpeaker] = useState<EventSpeaker | null>(null);
+  const [siteContent, setSiteContent] = useState({ title: "Cuando el Duelo se Detiene", date: "15 DE AGOSTO 2026", place: "CHIMALTENANGO", description: "Jornada Clínica sobre Duelo Prolongado. Seis miradas para comprender su diagnóstico, impacto corporal y abordaje terapéutico, familiar, psiquiátrico y comunitario.", live: false });
   const visibleAgenda = agenda;
-  const daysRemaining = Math.max(0, Math.ceil((new Date("2026-08-15T08:30:00-06:00").getTime() - Date.now()) / 86400000));
+  const daysRemaining = Math.max(0, Math.ceil((new Date(EVENT_START).getTime() - Date.now()) / 86400000));
 
   useEffect(() => {
     fetch("/api/registrations").then(response => response.json()).then(data => { setAvailable(data.available); setFull(data.full); }).catch(() => undefined);
+    fetch("/api/speakers").then(response => response.json()).then(data => setSpeakers(data.speakers ?? [])).catch(() => undefined);
+    fetch("/api/content").then(response => response.json()).then(data => setSiteContent(current => ({ ...current, ...data, live: Boolean(data.live) }))).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!selectedSpeaker) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setSelectedSpeaker(null); };
+    document.addEventListener("keydown", close); document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", close); document.body.style.overflow = ""; };
+  }, [selectedSpeaker]);
 
   async function submitRegistration(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,10 +71,10 @@ export default function Home() {
           <img className="brand-logo" src="/duelo-simbolo.png" alt="" /><span>ENCUENTRO<br /><b>CLÍNICO</b></span>
         </a>
         <nav aria-label="Navegación principal">
-          <a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ejes clínicos</a><a href="#constancias">Constancias</a>
+          <a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a>
         </nav>
         <div className="nav-actions">
-          <a className="live locked" href="#transmision" aria-label="Transmisión aún no disponible"><i /> En vivo · Próximamente</a>
+          <a className={`live ${siteContent.live ? "" : "locked"}`} href="#transmision" aria-label={siteContent.live ? "Ir a la transmisión" : "Transmisión aún no disponible"}><i /> {siteContent.live ? "En vivo · Entrar" : "En vivo · Próximamente"}</a>
           <button className="primary small" onClick={() => setRegistration("presencial")}>Inscribirme</button>
           <a className="admin-link" href="/admin" aria-label="Administración">⚙</a>
         </div>
@@ -78,9 +83,9 @@ export default function Home() {
       <section id="inicio" className="hero">
         <div className="hero-orb orb-one" /><div className="hero-orb orb-two" />
         <div className="hero-content" id="contenido">
-          <p className="eyebrow"><span /> 15 DE AGOSTO 2026 · CHIMALTENANGO</p>
-          <h1>Cuando el duelo<br /><em>se detiene.</em></h1>
-          <p className="hero-copy"><b>Jornada Clínica sobre Duelo Prolongado.</b> Seis miradas para comprender su diagnóstico, impacto corporal y abordaje terapéutico, familiar, psiquiátrico y comunitario.</p>
+          <p className="eyebrow"><span /> {siteContent.date.toUpperCase()} · {siteContent.place.toUpperCase()}</p>
+          <h1>{siteContent.title.includes(" se ") ? <>{siteContent.title.split(" se ")[0]}<br /><em>se {siteContent.title.split(" se ").slice(1).join(" se ").toLowerCase()}.</em></> : siteContent.title}</h1>
+          <p className="hero-copy">{siteContent.description}</p>
           <div className="hero-actions">
             <button className="primary" onClick={() => setRegistration("presencial")}>Vivirlo presencial <span>↗</span></button>
             <button className="secondary" onClick={() => setRegistration("virtual")}>Participar en línea <span>→</span></button>
@@ -110,8 +115,8 @@ export default function Home() {
       </section>
 
       <section id="ponentes" className="speakers-section section-pad">
-        <div className="section-head"><div><p className="section-kicker light">SEIS EJES · UNA SECUENCIA CLÍNICA</p><h2>Un tema.<br /><em>Seis miradas.</em></h2></div><p className="side-copy">Charlas breves de 15–18 minutos, transición inmediata y cierre integrador con los seis ponentes.</p></div>
-        <div className="speaker-grid">{speakers.map((speaker, i) => <article className={`speaker-card ${speaker.color}`} key={speaker.name}><div className="portrait"><div className="portrait-glow" /><span>{speaker.initials}</span><div className="portrait-number">0{i + 1}</div></div><div className="speaker-info"><p>{speaker.role}</p><h3>{speaker.name}</h3><div /><small>{speaker.topic}</small></div></article>)}</div>
+        <div className="section-head"><div><p className="section-kicker light">VOCES DEL ENCUENTRO</p><h2>Conoce a<br /><em>los ponentes.</em></h2></div><p className="side-copy">Selecciona una ficha para conocer su trayectoria, ponencia y contenido audiovisual.</p></div>
+        {speakers.length === 0 ? <div className="public-empty dark"><span>PRÓXIMAMENTE</span><h3>Ponentes por anunciar.</h3><p>Estamos preparando las fichas profesionales de quienes formarán parte de la jornada.</p></div> : <div className="speaker-grid">{speakers.map((speaker, index) => <button className="speaker-profile-card" key={speaker.id} onClick={() => setSelectedSpeaker(speaker)} aria-label={`Conocer a ${speaker.name}`}>{speaker.photo_url ? <img src={speaker.photo_url} alt={`Fotografía de ${speaker.name}`} /> : <div className="speaker-placeholder">{speaker.name.slice(0, 1)}</div>}<div className="speaker-profile-info"><span>{speaker.talk_time || `PONENCIA ${String(index + 1).padStart(2, "0")}`}</span><h3>{speaker.name}</h3><p>{speaker.professional_title}</p><small>{speaker.talk_title || "Tema por anunciar"}</small><b>Ver perfil →</b></div></button>)}</div>}
         <a className="secondary light-btn" href="#agenda">Ver cronograma completo <span>→</span></a>
       </section>
 
@@ -131,16 +136,18 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="transmision" className="live-banner section-pad"><div className="live-visual"><div className="play-lock">▶</div><span>TRANSMISIÓN PRIVADA</span></div><div><p className="section-kicker light">ENCUENTRO EN VIVO</p><h2>La sala se abrirá<br /><em>cuando sea el momento.</em></h2><p>El acceso aparecerá aquí cuando el equipo organizador active la transmisión.</p><button disabled className="secondary light-btn">Aún no disponible · 🔒</button></div></section>
+      <section id="transmision" className="live-banner section-pad"><div className="live-visual"><div className="play-lock">▶</div><span>TRANSMISIÓN PRIVADA</span></div><div><p className="section-kicker light">ENCUENTRO EN VIVO</p><h2>La sala se abrirá<br /><em>cuando sea el momento.</em></h2><p>El acceso aparecerá aquí cuando el equipo organizador active la transmisión.</p><button disabled={!siteContent.live} className="secondary light-btn">{siteContent.live ? "Entrar a la transmisión →" : "Aún no disponible · 🔒"}</button></div></section>
 
       <section id="recursos" className="resources section-pad">
         <div className="section-head"><div><p className="section-kicker">BIBLIOTECA DEL ENCUENTRO</p><h2>Para seguir<br /><em>profundizando.</em></h2></div><p className="side-copy dark-copy">Materiales seleccionados por el comité académico. Algunos recursos se habilitarán durante el evento.</p></div>
-        <div className="resource-grid"><article><span>GUÍA</span><h3>Cuaderno del participante</h3><p>Preguntas, notas y herramientas para acompañar tu experiencia.</p><button>Descargar PDF ↓</button></article><article><span>LECTURAS</span><h3>Selección previa</h3><p>Artículos y referencias recomendadas por los ponentes.</p><button>Explorar biblioteca →</button></article><article className="locked-resource"><span>DESPUÉS DEL EVENTO</span><h3>Grabaciones y presentaciones</h3><p>Disponible para participantes inscritos.</p><button disabled>Próximamente 🔒</button></article></div>
+        <div className="public-empty"><span>BIBLIOTECA EN PREPARACIÓN</span><h3>Aún no hay recursos publicados.</h3><p>Los materiales aparecerán aquí cuando el equipo académico los cargue.</p></div>
       </section>
 
-      <section className="partners section-pad"><p className="section-kicker">HACEN POSIBLE ESTE ENCUENTRO</p><h2>Aliados por la salud mental.</h2><div className="logo-row"><span>MENTE ABIERTA</span><span>CLÍNICA SER</span><span>PSI·LAB</span><span>UNIVERSIDAD CENTRAL</span><span>FUNDACIÓN ESCUCHA</span></div><a href="mailto:alianzas@encuentroclinico.org">Quiero ser patrocinador <span>→</span></a></section>
+      <section className="partners section-pad"><p className="section-kicker">HACEN POSIBLE ESTE ENCUENTRO</p><h2>Aliados por la salud mental.</h2><div className="public-empty"><span>CONVOCATORIA ABIERTA</span><h3>Patrocinadores por anunciar.</h3><p>Las organizaciones confirmadas aparecerán aquí.</p></div><a href="mailto:alianzas@encuentroclinico.org">Quiero ser patrocinador <span>→</span></a></section>
 
-      <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ejes clínicos</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => setRegistration("presencial")}>Inscripción presencial</button><button onClick={() => setRegistration("virtual")}>Inscripción virtual</button><a href="mailto:alianzas@encuentroclinico.org">Patrocinios</a><a href="/admin">Administración</a></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
+      <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => setRegistration("presencial")}>Inscripción presencial</button><button onClick={() => setRegistration("virtual")}>Inscripción virtual</button><a href="mailto:alianzas@encuentroclinico.org">Patrocinios</a><a href="/admin">Administración</a></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
+
+      {selectedSpeaker && <div className="modal-backdrop speaker-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedSpeaker(null); }}><section className="speaker-modal" role="dialog" aria-modal="true" aria-labelledby="speaker-modal-name"><button className="modal-close" aria-label="Cerrar perfil" onClick={() => setSelectedSpeaker(null)}>×</button><div className="speaker-modal-media">{selectedSpeaker.photo_url ? <img src={selectedSpeaker.photo_url} alt={`Fotografía de ${selectedSpeaker.name}`} /> : <div className="speaker-placeholder">{selectedSpeaker.name.slice(0, 1)}</div>}</div><div className="speaker-modal-copy"><p className="section-kicker">{selectedSpeaker.talk_time || "PONENTE"}</p><h2 id="speaker-modal-name">{selectedSpeaker.name}</h2><strong>{selectedSpeaker.professional_title}</strong>{selectedSpeaker.talk_title && <h3>{selectedSpeaker.talk_title}</h3>}<p>{selectedSpeaker.bio || "La semblanza profesional estará disponible próximamente."}</p>{selectedSpeaker.video_url && <video src={selectedSpeaker.video_url} controls preload="metadata" />}</div></section></div>}
 
       {registration && <div className="modal-backdrop" role="presentation" onMouseDown={() => setRegistration(null)}><div className="registration-modal" role="dialog" aria-modal="true" aria-labelledby="reg-title" onMouseDown={e => e.stopPropagation()}><button className="modal-close" onClick={() => setRegistration(null)} aria-label="Cerrar">×</button>{sent ? <div className="success"><span>✓</span><h2>Inscripción confirmada.</h2><p>Tu cuenta también quedó creada. Ingresa con tu correo y utiliza tu número de teléfono como contraseña inicial para consultar materiales y descargar tu constancia cuando esté disponible.</p><a className="primary" href="/mi-cuenta">Ir a mi cuenta</a></div> : <><p className="section-kicker">INSCRIPCIÓN {registration.toUpperCase()}</p><h2 id="reg-title">Reserva tu lugar.</h2><p>Al inscribirte crearemos tu cuenta personal. Tu usuario será tu correo electrónico y tu contraseña inicial será tu número de teléfono. La necesitarás para acceder a materiales y descargar tu constancia.</p><form onSubmit={submitRegistration} className="registration-form"><label>Nombre completo *<input required name="name" autoComplete="name" /></label><label>Correo electrónico *<input required type="email" name="email" autoComplete="email" /></label><label>Teléfono / WhatsApp *<input required minLength={8} type="tel" name="phone" autoComplete="tel" /></label><div className="check-row"><label><input type="checkbox" checked={student} onChange={e => { setStudent(e.target.checked); if (e.target.checked) setProfessional(false); }} /> Soy estudiante</label><label><input type="checkbox" checked={professional} onChange={e => { setProfessional(e.target.checked); if (e.target.checked) setStudent(false); }} /> Soy profesional</label></div>{student && <label>Universidad / centro de estudios *<input required name="university" /></label>}{professional && <><label>Profesión *<select required name="profession" defaultValue=""><option value="" disabled>Selecciona una profesión</option><option>Psicología clínica</option><option>Psicología educativa</option><option>Psicología industrial</option><option>Psiquiatría</option><option>Medicina</option><option>Trabajo social</option><option>Orientación</option><option>Otra profesión de salud</option></select></label><label>Número de colegiado *<input required name="license" /></label></>}<label>País *<select required name="country" defaultValue="Guatemala"><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Costa Rica</option><option>México</option><option>Otro</option></select></label><label className="consent"><input required type="checkbox" /> Acepto el tratamiento de mis datos y la creación de mi cuenta de participante.</label>{registrationError && <p className="form-error">{registrationError}</p>}<button className="primary submit" type="submit" disabled={submitting}>{submitting ? "Creando cuenta e inscripción…" : "Crear cuenta e inscribirme"} <span>→</span></button></form></>}</div></div>}
     </main>
