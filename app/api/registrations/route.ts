@@ -1,4 +1,5 @@
 import { supabaseServerFetch } from "../../../lib/supabase-server";
+import { currentUser } from "../../../lib/auth";
 
 const CAPACITY = 250;
 
@@ -17,6 +18,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const user = await currentUser();
+  if (!user) return Response.json({ error: "Debes crear tu cuenta antes de inscribirte." }, { status: 401 });
   const data = await request.json() as Record<string, string | boolean>;
   if (!data.name || !data.email || !data.phone || !data.modality) return Response.json({ error: "Faltan datos requeridos" }, { status: 400 });
 
@@ -33,6 +36,7 @@ export async function POST(request: Request) {
       p_institution: data.institution || null,
       p_country: data.country || "Guatemala",
       p_waitlist: Boolean(data.waitlist),
+      p_user_id: user.id,
     }),
   });
   if (!response.ok) return Response.json({ error: "No fue posible completar la inscripción." }, { status: 503 });

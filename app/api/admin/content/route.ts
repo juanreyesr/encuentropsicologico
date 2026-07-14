@@ -1,7 +1,7 @@
-import { getChatGPTUser } from "../../../chatgpt-auth";
+import { currentUser } from "../../../../lib/auth";
 import { supabaseServerFetch } from "../../../../lib/supabase-server";
 
-async function authorized() { return Boolean(await getChatGPTUser()); }
+async function authorized() { const user = await currentUser(); return user?.app_metadata?.encuentro_psicologico_role === "admin"; }
 
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "No autorizado" }, { status: 401 });

@@ -8,6 +8,8 @@ function configuration() {
   return { projectUrl: projectUrl.replace(/\/$/, ""), secretKey };
 }
 
+export function supabaseServerConfiguration() { return configuration(); }
+
 export async function supabaseServerFetch(path: string, init: RequestInit = {}) {
   const { projectUrl, secretKey } = configuration();
   return fetch(`${projectUrl}/rest/v1/${path}`, {

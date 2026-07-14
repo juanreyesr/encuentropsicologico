@@ -27,4 +27,6 @@ La aplicación utiliza tablas exclusivas con el prefijo `encuentro_psicologico_`
 - Inscripción presencial con cupo máximo de 250 y lista de espera automática.
 - Inscripción virtual.
 - Panel de administración, activación de transmisión, patrocinadores y biblioteca.
+- Cuenta de participante con Supabase Auth: correo como usuario y teléfono como contraseña inicial.
+- Área privada para inscripción, materiales y descarga de constancias emitidas.
 - Compilación estándar de Next.js compatible con Vercel.
