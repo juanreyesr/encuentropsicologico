@@ -1,30 +1,35 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 
 const agenda = [
-  { time: "08:00", type: "Apertura", title: "Registro, café y encuentro", speaker: "Vestíbulo principal" },
-  { time: "09:00", type: "Magistral", title: "La mente que sana: presencia, vínculo y cambio", speaker: "Dra. Elena Valdés · Psicología clínica" },
-  { time: "10:30", type: "Panel", title: "Trauma, cuerpo y memoria: una mirada integradora", speaker: "Panel interdisciplinario" },
-  { time: "12:00", type: "Pausa", title: "Almuerzo y conexión profesional", speaker: "Zona de experiencias" },
-  { time: "14:00", type: "Taller", title: "Herramientas para conversaciones clínicas difíciles", speaker: "Lic. Samuel Méndez" },
-  { time: "16:00", type: "Magistral", title: "Psicología en una era de inteligencia artificial", speaker: "Dra. Mariana Solís · Neuropsicología" },
-  { time: "17:30", type: "Cierre", title: "Lo que nos llevamos a la práctica", speaker: "Comité académico" },
+  { time: "8:30–9:00", type: "Registro", title: "Registro e inscripciones", speaker: "Recepción de participantes" },
+  { time: "9:00–9:10", type: "Apertura", title: "Apertura institucional", speaker: "Bienvenida a la jornada" },
+  { time: "9:10–9:30", type: "Charla 1", title: "Diagnóstico", speaker: "Duelo normal vs. trastorno de duelo prolongado · DSM-5-TR / CIE-11" },
+  { time: "9:30–9:50", type: "Charla 2", title: "Impacto corporal", speaker: "Somatización del duelo no resuelto" },
+  { time: "9:50–10:10", type: "Charla 3", title: "Manejo terapéutico", speaker: "Intervención clínica individual" },
+  { time: "10:10–10:25", type: "Receso", title: "Pausa y encuentro", speaker: "15 minutos" },
+  { time: "10:25–10:45", type: "Charla 4", title: "Manejo familiar", speaker: "El sistema familiar frente al duelo detenido" },
+  { time: "10:45–11:05", type: "Charla 5", title: "Psiquiatría", speaker: "Cuándo se requiere manejo farmacológico" },
+  { time: "11:05–11:25", type: "Charla 6", title: "Cierre comunitario", speaker: "Resiliencia y rol del psicólogo local" },
+  { time: "11:25–12:00", type: "Cierre", title: "Panel de preguntas y entrega de constancias", speaker: "Conversación con los 6 ponentes · cierre institucional" },
 ];
 
 const speakers = [
-  { initials: "EV", name: "Dra. Elena Valdés", role: "Psicóloga clínica y autora", topic: "Presencia terapéutica y cambio profundo", color: "violet" },
-  { initials: "SM", name: "Lic. Samuel Méndez", role: "Especialista en trauma complejo", topic: "El cuerpo como territorio de recuperación", color: "gold" },
-  { initials: "MS", name: "Dra. Mariana Solís", role: "Neuropsicóloga e investigadora", topic: "La clínica frente a la inteligencia artificial", color: "coral" },
+  { initials: "01", name: "Diagnóstico", role: "Eje clínico", topic: "Duelo normal vs. trastorno de duelo prolongado", color: "violet" },
+  { initials: "02", name: "Impacto corporal", role: "Eje clínico", topic: "Somatización del duelo no resuelto", color: "gold" },
+  { initials: "03", name: "Manejo terapéutico", role: "Eje clínico", topic: "Intervención clínica individual", color: "coral" },
+  { initials: "04", name: "Manejo familiar", role: "Eje sistémico", topic: "El sistema familiar frente al duelo detenido", color: "gold" },
+  { initials: "05", name: "Psiquiatría", role: "Eje interdisciplinario", topic: "Cuándo se requiere manejo farmacológico", color: "violet" },
+  { initials: "06", name: "Cierre comunitario", role: "Eje comunitario", topic: "Resiliencia y rol del psicólogo local", color: "coral" },
 ];
 
 export default function Home() {
-  const [day, setDay] = useState("Día 1");
   const [registration, setRegistration] = useState<"presencial" | "virtual" | null>(null);
   const [professional, setProfessional] = useState(false);
   const [student, setStudent] = useState(false);
   const [sent, setSent] = useState(false);
-  const visibleAgenda = useMemo(() => day === "Día 1" ? agenda : agenda.slice(1, 6).map((item, i) => ({ ...item, time: `${9 + i * 2}:00` })), [day]);
+  const visibleAgenda = agenda;
 
   async function submitRegistration(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,10 +43,10 @@ export default function Home() {
       <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <header className="topbar">
         <a className="brand" href="#inicio" aria-label="Inicio Encuentro Clínico">
-          <span className="brand-mark">EC</span><span>ENCUENTRO<br /><b>CLÍNICO</b></span>
+          <img className="brand-logo" src="/duelo-simbolo.png" alt="" /><span>ENCUENTRO<br /><b>CLÍNICO</b></span>
         </a>
         <nav aria-label="Navegación principal">
-          <a href="#encuentro">El encuentro</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#recursos">Recursos</a>
+          <a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ejes clínicos</a><a href="#constancias">Constancias</a>
         </nav>
         <div className="nav-actions">
           <a className="live locked" href="#transmision" aria-label="Transmisión aún no disponible"><i /> En vivo · Próximamente</a>
@@ -53,51 +58,59 @@ export default function Home() {
       <section id="inicio" className="hero">
         <div className="hero-orb orb-one" /><div className="hero-orb orb-two" />
         <div className="hero-content" id="contenido">
-          <p className="eyebrow"><span /> 16–17 OCTUBRE 2026 · CIUDAD DE GUATEMALA</p>
-          <h1>La ciencia de<br /><em>encontrarnos.</em></h1>
-          <p className="hero-copy">Dos días para volver al corazón de la práctica clínica: escuchar mejor, comprender más profundo y acompañar con humanidad.</p>
+          <p className="eyebrow"><span /> 15 DE AGOSTO 2026 · CHIMALTENANGO</p>
+          <h1>Cuando el duelo<br /><em>se detiene.</em></h1>
+          <p className="hero-copy"><b>Jornada Clínica sobre Duelo Prolongado.</b> Seis miradas para comprender su diagnóstico, impacto corporal y abordaje terapéutico, familiar, psiquiátrico y comunitario.</p>
           <div className="hero-actions">
             <button className="primary" onClick={() => setRegistration("presencial")}>Vivirlo presencial <span>↗</span></button>
             <button className="secondary" onClick={() => setRegistration("virtual")}>Participar en línea <span>→</span></button>
           </div>
-          <div className="hero-meta"><span><b>02</b> días</span><span><b>18</b> voces</span><span><b>12</b> experiencias</span></div>
+          <div className="hero-meta"><span><b>01</b> jornada</span><span><b>06</b> ponentes</span><span><b>3.5</b> horas</span></div>
         </div>
         <div className="hero-stage" aria-label="Conferencia magistral ante una audiencia">
           <div className="arch arch-1" /><div className="arch arch-2" /><div className="stage-light" />
           <div className="speaker-figure"><span className="head" /><span className="body" /></div>
           <div className="audience"><i /><i /><i /><i /><i /><i /><i /><i /></div>
-          <div className="stage-caption"><span>01</span><p>PONENCIA MAGISTRAL<br /><b>Ideas que transforman la práctica</b></p></div>
+          <div className="stage-caption"><span>15</span><p>AGOSTO 2026<br /><b>Modalidad híbrida · alcance nacional</b></p></div>
         </div>
         <a className="scroll-hint" href="#encuentro">Descubrir <span>↓</span></a>
       </section>
 
       <section id="encuentro" className="manifesto section-pad">
-        <div><p className="section-kicker">UNA EXPERIENCIA CLÍNICA VIVA</p><h2>No venimos solo a escuchar.<br /><em>Venimos a conectar.</em></h2></div>
-        <div className="manifesto-copy"><p>Un espacio de aprendizaje riguroso y profundamente humano para estudiantes, profesionales y equipos de salud mental.</p><a href="#agenda">Explorar el programa <span>→</span></a></div>
+        <div><p className="section-kicker">POR QUÉ EL DUELO PROLONGADO</p><h2>Cuando el tiempo pasa,<br /><em>pero el dolor no cambia.</em></h2></div>
+        <div className="manifesto-copy"><p>Una categoría diagnóstica reconocida por DSM-5-TR y CIE-11, todavía poco abordada en espacios formales e interdisciplinarios de Guatemala.</p><a href="#agenda">Explorar la jornada <span>→</span></a></div>
         <div className="value-grid">
-          <article><span>01</span><div className="line-icon">◌</div><h3>Perspectivas actuales</h3><p>Conocimiento clínico conectado con los desafíos de hoy.</p></article>
-          <article><span>02</span><div className="line-icon">✦</div><h3>Herramientas aplicables</h3><p>Recursos para llevar del encuentro a la consulta.</p></article>
-          <article><span>03</span><div className="line-icon">∞</div><h3>Comunidad profesional</h3><p>Conversaciones que continúan mucho después del evento.</p></article>
+          <article><span>01</span><div className="line-icon">◌</div><h3>Clínicamente relevante</h3><p>El duelo prolongado no es solo una etapa emocional: requiere detección y abordaje especializado.</p></article>
+          <article><span>02</span><div className="line-icon">✦</div><h3>Necesario en Guatemala</h3><p>Un espacio formal, interdisciplinario y con respaldo institucional dedicado al tema.</p></article>
+          <article><span>03</span><div className="line-icon">∞</div><h3>Alcance interinstitucional</h3><p>Universidades, Colegio de Psicólogos y otras ramas de la salud reunidas en una sola agenda.</p></article>
         </div>
       </section>
 
       <section id="agenda" className="agenda-section section-pad">
-        <div className="section-head"><div><p className="section-kicker">PROGRAMA ACADÉMICO</p><h2>Tu ruta de<br /><em>aprendizaje.</em></h2></div><div className="day-tabs" role="tablist">{["Día 1", "Día 2"].map(d => <button key={d} role="tab" aria-selected={day === d} onClick={() => setDay(d)}>{d}<small>{d === "Día 1" ? "Viernes 16" : "Sábado 17"}</small></button>)}</div></div>
+        <div className="section-head"><div><p className="section-kicker">CRONOGRAMA · 8:30 A.M.–12:00 P.M.</p><h2>Tres horas y media,<br /><em>minuto a minuto.</em></h2></div><div className="event-date-card"><b>15</b><span>AGOSTO<br />2026</span></div></div>
         <div className="agenda-list">{visibleAgenda.map((item, i) => <article key={item.time + item.title}><time>{item.time}</time><span className={`tag tag-${i % 3}`}>{item.type}</span><div><h3>{item.title}</h3><p>{item.speaker}</p></div><button aria-label={`Ver detalles de ${item.title}`}>+</button></article>)}</div>
         <a className="text-link" href="#recursos">Descargar agenda completa <span>↓</span></a>
       </section>
 
       <section id="ponentes" className="speakers-section section-pad">
-        <div className="section-head"><div><p className="section-kicker light">VOCES QUE ABREN CAMINO</p><h2>Conoce a quienes<br /><em>nos harán pensar.</em></h2></div><p className="side-copy">Referentes, investigadores y profesionales que combinan evidencia, experiencia y sensibilidad humana.</p></div>
+        <div className="section-head"><div><p className="section-kicker light">SEIS EJES · UNA SECUENCIA CLÍNICA</p><h2>Un tema.<br /><em>Seis miradas.</em></h2></div><p className="side-copy">Charlas breves de 15–18 minutos, transición inmediata y cierre integrador con los seis ponentes.</p></div>
         <div className="speaker-grid">{speakers.map((speaker, i) => <article className={`speaker-card ${speaker.color}`} key={speaker.name}><div className="portrait"><div className="portrait-glow" /><span>{speaker.initials}</span><div className="portrait-number">0{i + 1}</div></div><div className="speaker-info"><p>{speaker.role}</p><h3>{speaker.name}</h3><div /><small>{speaker.topic}</small></div></article>)}</div>
-        <button className="secondary light-btn">Ver todos los ponentes <span>→</span></button>
+        <a className="secondary light-btn" href="#agenda">Ver cronograma completo <span>→</span></a>
       </section>
 
       <section id="inscripciones" className="formats section-pad">
         <div className="center-head"><p className="section-kicker">ELIGE CÓMO VIVIRLO</p><h2>Una experiencia.<br /><em>Dos formas de estar.</em></h2></div>
         <div className="format-grid">
-          <article className="format-card featured"><span className="format-label">PRESENCIAL</span><div className="format-symbol">◉</div><h3>Estar cambia todo.</h3><p>Vive las conferencias, talleres y encuentros en el mismo espacio.</p><ul><li>Acceso a todas las salas</li><li>Kit del participante</li><li>Café y espacios de conexión</li><li>Certificado de participación</li></ul><button className="primary" onClick={() => setRegistration("presencial")}>Inscripción presencial <span>→</span></button></article>
-          <article className="format-card"><span className="format-label">VIRTUAL</span><div className="format-symbol">◎</div><h3>Conéctate desde donde estés.</h3><p>Transmisión de alta calidad y acceso posterior a las ponencias.</p><ul><li>Transmisión en vivo</li><li>Acceso por 30 días</li><li>Biblioteca digital</li><li>Certificado de participación</li></ul><button className="secondary" onClick={() => setRegistration("virtual")}>Inscripción virtual <span>→</span></button></article>
+          <article className="format-card featured"><span className="format-label">PRESENCIAL</span><div className="format-symbol">◉</div><h3>Vívelo en Chimaltenango.</h3><p>Participa en la jornada, el panel de preguntas y el encuentro interdisciplinario.</p><ul><li>Seis charlas clínicas breves</li><li>Panel con los seis ponentes</li><li>Espacio de conexión profesional</li><li>Constancia según perfil</li></ul><button className="primary" onClick={() => setRegistration("presencial")}>Inscripción presencial <span>→</span></button></article>
+          <article className="format-card"><span className="format-label">VIRTUAL</span><div className="format-symbol">◎</div><h3>Conéctate desde donde estés.</h3><p>Sigue la jornada en directo con el mismo contenido científico.</p><ul><li>Transmisión en vivo</li><li>Acceso a las seis charlas</li><li>Biblioteca digital</li><li>Constancia según perfil</li></ul><button className="secondary" onClick={() => setRegistration("virtual")}>Inscripción virtual <span>→</span></button></article>
+        </div>
+      </section>
+
+      <section id="constancias" className="certificates section-pad">
+        <div className="center-head"><p className="section-kicker">BENEFICIOS PARA PARTICIPANTES</p><h2>Constancias diferenciadas<br /><em>por perfil.</em></h2></div>
+        <div className="certificate-grid">
+          <article className="professional-certificate"><span>CONSTANCIA</span><h3>Profesionales colegiados</h3><em>Colegio de Psicólogos de Guatemala (CPG)</em><ul><li>Constancia con aval y numeración del CPG</li><li>Reconocimiento formal de horas de actualización profesional</li><li>Firma conjunta CPG</li></ul></article>
+          <article><span>DIPLOMA</span><h3>Estudiantes y otras ramas de la salud</h3><em>Medicina, enfermería, trabajo social y otras carreras</em><ul><li>Diploma de participación institucional</li><li>Válido como constancia de asistencia académica</li><li>Mismo contenido científico, sin aval gremial del CPG</li></ul></article>
         </div>
       </section>
 
@@ -110,7 +123,7 @@ export default function Home() {
 
       <section className="partners section-pad"><p className="section-kicker">HACEN POSIBLE ESTE ENCUENTRO</p><h2>Aliados por la salud mental.</h2><div className="logo-row"><span>MENTE ABIERTA</span><span>CLÍNICA SER</span><span>PSI·LAB</span><span>UNIVERSIDAD CENTRAL</span><span>FUNDACIÓN ESCUCHA</span></div><a href="mailto:alianzas@encuentroclinico.org">Quiero ser patrocinador <span>→</span></a></section>
 
-      <footer><div className="footer-brand"><span className="brand-mark">EC</span><h2>Encuentro<br />Clínico de Psicología</h2></div><div><b>Explora</b><a href="#encuentro">El encuentro</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#recursos">Biblioteca</a></div><div><b>Participa</b><button onClick={() => setRegistration("presencial")}>Inscripción presencial</button><button onClick={() => setRegistration("virtual")}>Inscripción virtual</button><a href="mailto:alianzas@encuentroclinico.org">Patrocinios</a><a href="/admin">Administración</a></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico · Privacidad · Términos</small></footer>
+      <footer><div className="footer-brand"><img className="footer-logo" src="/duelo-simbolo.png" alt="Símbolo de la jornada" /><h2>Cuando el Duelo se Detiene</h2></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ejes clínicos</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => setRegistration("presencial")}>Inscripción presencial</button><button onClick={() => setRegistration("virtual")}>Inscripción virtual</button><a href="mailto:alianzas@encuentroclinico.org">Patrocinios</a><a href="/admin">Administración</a></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
 
       {registration && <div className="modal-backdrop" role="presentation" onMouseDown={() => setRegistration(null)}><div className="registration-modal" role="dialog" aria-modal="true" aria-labelledby="reg-title" onMouseDown={e => e.stopPropagation()}><button className="modal-close" onClick={() => setRegistration(null)} aria-label="Cerrar">×</button>{sent ? <div className="success"><span>✓</span><h2>Tu lugar está en proceso.</h2><p>Recibimos tus datos para la modalidad {registration}. Pronto recibirás los siguientes pasos.</p><button className="primary" onClick={() => { setSent(false); setRegistration(null); }}>Listo</button></div> : <><p className="section-kicker">INSCRIPCIÓN {registration.toUpperCase()}</p><h2 id="reg-title">Reserva tu lugar.</h2><p>Completa tus datos. Los campos marcados son obligatorios.</p><form onSubmit={submitRegistration} className="registration-form"><label>Nombre completo *<input required name="name" autoComplete="name" /></label><label>Correo electrónico *<input required type="email" name="email" autoComplete="email" /></label><label>Teléfono / WhatsApp *<input required type="tel" name="phone" autoComplete="tel" /></label><div className="check-row"><label><input type="checkbox" checked={student} onChange={e => { setStudent(e.target.checked); if (e.target.checked) setProfessional(false); }} /> Soy estudiante</label><label><input type="checkbox" checked={professional} onChange={e => { setProfessional(e.target.checked); if (e.target.checked) setStudent(false); }} /> Soy profesional</label></div>{student && <label>Universidad / centro de estudios *<input required name="university" /></label>}{professional && <><label>Profesión *<select required defaultValue=""><option value="" disabled>Selecciona una profesión</option><option>Psicología clínica</option><option>Psicología educativa</option><option>Psicología industrial</option><option>Psiquiatría</option><option>Medicina</option><option>Trabajo social</option><option>Orientación</option><option>Otra profesión de salud</option></select></label><label>Número de colegiado *<input required name="license" /></label></>}<label>País *<select required defaultValue="Guatemala"><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Costa Rica</option><option>México</option><option>Otro</option></select></label><label className="consent"><input required type="checkbox" /> Acepto el tratamiento de mis datos para gestionar esta inscripción.</label><button className="primary submit" type="submit">Continuar con mi inscripción <span>→</span></button></form></>}</div></div>}
     </main>
