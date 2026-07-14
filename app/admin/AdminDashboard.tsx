@@ -63,7 +63,9 @@ export default function AdminDashboard({ userName }: { userName: string }) {
     const result = await response.json();
     setSaving(false);
     if (!response.ok) { flash(result.error ?? "No se pudo guardar el ponente."); return; }
-    await loadAll(); selectSpeaker(result.speaker); flash("Ponente guardado correctamente.");
+    const savedSpeaker = result.speaker as EventSpeaker;
+    setSpeakers(current => (selectedId === "new" ? [...current, savedSpeaker] : current.map(item => item.id === savedSpeaker.id ? savedSpeaker : item)).sort((a, b) => a.display_order - b.display_order || a.id - b.id));
+    selectSpeaker(savedSpeaker); flash("Ponente guardado correctamente.");
   }
 
   async function removeSpeaker() {
