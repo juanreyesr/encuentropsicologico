@@ -82,7 +82,7 @@ export default function Home() {
           <div className="hero-meta"><span><b>01</b> jornada</span><span><b>06</b> ponentes</span><span><b>3.5</b> horas</span></div>
           <div className="countdown"><span>Faltan</span><b>{daysRemaining}</b><span>días para la jornada</span></div>
         </div>
-        <div className="hero-stage keynote-arch" role="img" aria-label="Ponente en escenario durante una conferencia clínica" />
+        <div className="hero-stage keynote-arch" role="img" aria-label="Ponente en escenario durante una conferencia clínica"><div className="arch-date"><b>15</b><span>AGOSTO 2026<strong>Modalidad híbrida · alcance nacional</strong></span></div></div>
         <a className="scroll-hint" href="#encuentro">Descubrir <span>↓</span></a>
       </section>
 
