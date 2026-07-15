@@ -2,12 +2,18 @@ import { isEventAdmin } from "../../../../lib/admin";
 import { supabaseServerFetch } from "../../../../lib/supabase-server";
 import type { EventSpeaker } from "../../../../lib/event";
 
-const fields = "id,name,professional_title,talk_title,talk_time,bio,photo_url,video_url,display_order,is_published";
-const allowed = ["name", "professional_title", "talk_title", "talk_time", "bio", "photo_url", "video_url", "display_order", "is_published"] as const;
+const fields = "id,name,professional_title,talk_title,talk_time,program_item_id,bio,photo_url,video_url,contact_email,contact_phone,contact_website,display_order,is_published";
+const allowed = ["name", "professional_title", "talk_title", "talk_time", "program_item_id", "bio", "photo_url", "video_url", "contact_email", "contact_phone", "contact_website", "display_order", "is_published"] as const;
 
 function clean(input: Record<string, unknown>) {
   const result: Record<string, unknown> = {};
-  for (const key of allowed) if (key in input) result[key] = input[key];
+  for (const key of allowed) {
+    if (!(key in input)) continue;
+    if (key === "program_item_id") result[key] = input[key] ? Number(input[key]) : null;
+    else if (key === "display_order") result[key] = Number(input[key]) || 0;
+    else if (key === "is_published") result[key] = Boolean(input[key]);
+    else result[key] = input[key];
+  }
   return result;
 }
 

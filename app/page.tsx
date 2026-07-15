@@ -2,21 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import type { EventSpeaker } from "../lib/event";
-import { EVENT_START } from "../lib/event";
-
-const agenda = [
-  { time: "8:30–9:00", type: "Registro", title: "Registro e inscripciones", speaker: "Recepción de participantes" },
-  { time: "9:00–9:10", type: "Apertura", title: "Apertura institucional", speaker: "Bienvenida a la jornada" },
-  { time: "9:10–9:30", type: "Charla 1", title: "Diagnóstico", speaker: "Duelo normal vs. trastorno de duelo prolongado · DSM-5-TR / CIE-11" },
-  { time: "9:30–9:50", type: "Charla 2", title: "Impacto corporal", speaker: "Somatización del duelo no resuelto" },
-  { time: "9:50–10:10", type: "Charla 3", title: "Manejo terapéutico", speaker: "Intervención clínica individual" },
-  { time: "10:10–10:25", type: "Receso", title: "Pausa y encuentro", speaker: "15 minutos" },
-  { time: "10:25–10:45", type: "Charla 4", title: "Manejo familiar", speaker: "El sistema familiar frente al duelo detenido" },
-  { time: "10:45–11:05", type: "Charla 5", title: "Psiquiatría", speaker: "Cuándo se requiere manejo farmacológico" },
-  { time: "11:05–11:25", type: "Charla 6", title: "Cierre comunitario", speaker: "Resiliencia y rol del psicólogo local" },
-  { time: "11:25–12:00", type: "Cierre", title: "Panel de preguntas y entrega de constancias", speaker: "Conversación con los 6 ponentes · cierre institucional" },
-];
+import type { EventProgramItem, EventSpeaker } from "../lib/event";
+import { DEFAULT_PROGRAM, EVENT_START, programTimeLabel } from "../lib/event";
 
 const guatemalaDepartments = [
   "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Guatemala", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa",
@@ -41,14 +28,17 @@ export default function Home() {
   const [supportProblem, setSupportProblem] = useState("");
   const [supportSent, setSupportSent] = useState(false);
   const [speakers, setSpeakers] = useState<EventSpeaker[]>([]);
+  const [program, setProgram] = useState<EventProgramItem[]>(DEFAULT_PROGRAM);
   const [selectedSpeaker, setSelectedSpeaker] = useState<EventSpeaker | null>(null);
+  const [selectedProgramItem, setSelectedProgramItem] = useState<EventProgramItem | null>(null);
   const [siteContent, setSiteContent] = useState({ title: "Cuando el Duelo se Detiene", date: "15 DE AGOSTO 2026", place: "CHIMALTENANGO", description: "Jornada Clínica sobre Duelo Prolongado. Seis miradas para comprender su diagnóstico, impacto corporal y abordaje terapéutico, familiar, psiquiátrico y comunitario.", live: false });
   const [daysRemaining, setDaysRemaining] = useState(0);
-  const visibleAgenda = agenda;
+  const visibleAgenda = program;
 
   useEffect(() => {
     fetch("/api/registrations").then(response => response.json()).then(data => { setAvailable(data.available); setFull(data.full); }).catch(() => undefined);
     fetch("/api/speakers").then(response => response.json()).then(data => setSpeakers(data.speakers ?? [])).catch(() => undefined);
+    fetch("/api/program").then(response => response.json()).then(data => setProgram((data.program?.length ? data.program : DEFAULT_PROGRAM) as EventProgramItem[])).catch(() => undefined);
     fetch("/api/content").then(response => response.json()).then(data => setSiteContent(current => ({ ...current, ...data, live: Boolean(data.live) }))).catch(() => undefined);
     const updateDays = () => setDaysRemaining(Math.max(0, Math.ceil((new Date(EVENT_START).getTime() - Date.now()) / 86400000)));
     const timeout = window.setTimeout(updateDays, 0);
@@ -57,11 +47,16 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!selectedSpeaker) return;
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setSelectedSpeaker(null); };
+    if (!selectedSpeaker && !selectedProgramItem) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedSpeaker(null);
+        setSelectedProgramItem(null);
+      }
+    };
     document.addEventListener("keydown", close); document.body.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", close); document.body.style.overflow = ""; };
-  }, [selectedSpeaker]);
+  }, [selectedSpeaker, selectedProgramItem]);
 
   function openRegistration(modality: "presencial" | "virtual") {
     setSent(false);
@@ -131,6 +126,20 @@ export default function Home() {
     setSubmitting(false);
   }
 
+  function speakerForProgramItem(item: EventProgramItem) {
+    return speakers.find(speaker => speaker.program_item_id === item.id) ?? null;
+  }
+
+  function openProgramDetail(item: EventProgramItem) {
+    const linkedSpeaker = speakerForProgramItem(item);
+    if (linkedSpeaker) setSelectedSpeaker(linkedSpeaker);
+    else setSelectedProgramItem(item);
+  }
+
+  function speakerProgramItem(speaker: EventSpeaker) {
+    return program.find(item => item.id === speaker.program_item_id) ?? null;
+  }
+
   return (
     <main>
       <a className="skip-link" href="#contenido">Saltar al contenido</a>
@@ -179,13 +188,22 @@ export default function Home() {
 
       <section id="agenda" className="agenda-section section-pad">
         <div className="section-head"><div><p className="section-kicker">CRONOGRAMA · 8:30 A.M.–12:00 P.M.</p><h2>Tres horas y media,<br /><em>minuto a minuto.</em></h2></div><div className="event-date-card"><b>15</b><span>AGOSTO<br />2026</span></div></div>
-        <div className="agenda-list">{visibleAgenda.map((item, i) => <article key={item.time + item.title}><time>{item.time}</time><span className={`tag tag-${i % 3}`}>{item.type}</span><div><h3>{item.title}</h3><p>{item.speaker}</p></div><button aria-label={`Ver detalles de ${item.title}`}>+</button></article>)}</div>
+        <div className="agenda-list">{visibleAgenda.map((item, i) => {
+          const linkedSpeaker = speakerForProgramItem(item);
+          return <article key={item.id}><time>{programTimeLabel(item)}</time><span className={`tag tag-${i % 3}`}>{item.type}</span><div><h3>{item.title}</h3><p>{linkedSpeaker ? linkedSpeaker.name : item.description}</p></div><button aria-label={`Ver detalles de ${item.title}`} onClick={() => openProgramDetail(item)}>+</button></article>;
+        })}</div>
         <a className="text-link" href="#recursos">Descargar agenda completa <span>↓</span></a>
       </section>
 
       <section id="ponentes" className="speakers-section section-pad">
         <div className="section-head"><div><p className="section-kicker light">VOCES DEL ENCUENTRO</p><h2>Conoce a<br /><em>los ponentes.</em></h2></div><p className="side-copy">Selecciona una ficha para conocer su trayectoria, ponencia y contenido audiovisual.</p></div>
-        {speakers.length === 0 ? <div className="public-empty dark"><span>PRÓXIMAMENTE</span><h3>Ponentes por anunciar.</h3><p>Estamos preparando las fichas profesionales de quienes formarán parte de la jornada.</p></div> : <div className="speaker-grid">{speakers.map((speaker, index) => <button className="speaker-profile-card" key={speaker.id} onClick={() => setSelectedSpeaker(speaker)} aria-label={`Conocer a ${speaker.name}`}>{speaker.photo_url ? <img src={speaker.photo_url} alt={`Fotografía de ${speaker.name}`} /> : <div className="speaker-placeholder">{speaker.name.slice(0, 1)}</div>}<div className="speaker-profile-info"><span>{speaker.talk_time || `PONENCIA ${String(index + 1).padStart(2, "0")}`}</span><h3>{speaker.name}</h3><p>{speaker.professional_title}</p><small>{speaker.talk_title || "Tema por anunciar"}</small><b>Ver perfil →</b></div></button>)}</div>}
+        {speakers.length === 0 ? <div className="public-empty dark"><span>PRÓXIMAMENTE</span><h3>Ponentes por anunciar.</h3><p>Estamos preparando las fichas profesionales de quienes formarán parte de la jornada.</p></div> : <div className="speaker-grid">{speakers.map((speaker, index) => {
+          const item = speakerProgramItem(speaker);
+          return <button className="speaker-profile-card speaker-arch-card" key={speaker.id} onClick={() => setSelectedSpeaker(speaker)} aria-label={`Conocer a ${speaker.name}`}>
+            <div className="speaker-arch-portrait">{speaker.photo_url ? <img src={speaker.photo_url} alt={`Fotografía de ${speaker.name}`} /> : <div className="speaker-placeholder">{speaker.name.slice(0, 1)}</div>}<span>{String(index + 1).padStart(2, "0")}</span></div>
+            <div className="speaker-profile-info"><span>{item ? programTimeLabel(item) : speaker.talk_time || `PONENCIA ${String(index + 1).padStart(2, "0")}`}</span><h3>{speaker.name}</h3><p>{speaker.professional_title}</p><small>{speaker.talk_title || item?.title || "Tema por anunciar"}</small><b>Ver perfil →</b></div>
+          </button>;
+        })}</div>}
         <a className="secondary light-btn" href="#agenda">Ver cronograma completo <span>→</span></a>
       </section>
 
@@ -216,7 +234,9 @@ export default function Home() {
 
       <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => openRegistration("presencial")}>Inscripción presencial</button><button onClick={() => openRegistration("virtual")}>Inscripción virtual</button><a href="mailto:alianzas@encuentroclinico.org">Patrocinios</a><Link href="/admin">Administración</Link></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
 
-      {selectedSpeaker && <div className="modal-backdrop speaker-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedSpeaker(null); }}><section className="speaker-modal" role="dialog" aria-modal="true" aria-labelledby="speaker-modal-name"><button className="modal-close" aria-label="Cerrar perfil" onClick={() => setSelectedSpeaker(null)}>×</button><div className="speaker-modal-media">{selectedSpeaker.photo_url ? <img src={selectedSpeaker.photo_url} alt={`Fotografía de ${selectedSpeaker.name}`} /> : <div className="speaker-placeholder">{selectedSpeaker.name.slice(0, 1)}</div>}</div><div className="speaker-modal-copy"><p className="section-kicker">{selectedSpeaker.talk_time || "PONENTE"}</p><h2 id="speaker-modal-name">{selectedSpeaker.name}</h2><strong>{selectedSpeaker.professional_title}</strong>{selectedSpeaker.talk_title && <h3>{selectedSpeaker.talk_title}</h3>}<p>{selectedSpeaker.bio || "La semblanza profesional estará disponible próximamente."}</p>{selectedSpeaker.video_url && <video src={selectedSpeaker.video_url} controls preload="metadata" />}</div></section></div>}
+      {selectedSpeaker && <div className="modal-backdrop speaker-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedSpeaker(null); }}><section className="speaker-modal" role="dialog" aria-modal="true" aria-labelledby="speaker-modal-name"><button className="modal-close" aria-label="Cerrar perfil" onClick={() => setSelectedSpeaker(null)}>×</button><div className="speaker-modal-media">{selectedSpeaker.photo_url ? <img src={selectedSpeaker.photo_url} alt={`Fotografía de ${selectedSpeaker.name}`} /> : <div className="speaker-placeholder">{selectedSpeaker.name.slice(0, 1)}</div>}</div><div className="speaker-modal-copy"><p className="section-kicker">{speakerProgramItem(selectedSpeaker) ? programTimeLabel(speakerProgramItem(selectedSpeaker)!) : selectedSpeaker.talk_time || "PONENTE"}</p><h2 id="speaker-modal-name">{selectedSpeaker.name}</h2><strong>{selectedSpeaker.professional_title}</strong>{(selectedSpeaker.talk_title || speakerProgramItem(selectedSpeaker)?.title) && <h3>{selectedSpeaker.talk_title || speakerProgramItem(selectedSpeaker)?.title}</h3>}<p>{selectedSpeaker.bio || "La semblanza profesional estará disponible próximamente."}</p>{(selectedSpeaker.contact_email || selectedSpeaker.contact_phone || selectedSpeaker.contact_website) && <div className="speaker-contact"><b>Contacto</b>{selectedSpeaker.contact_email && <a href={`mailto:${selectedSpeaker.contact_email}`}>{selectedSpeaker.contact_email}</a>}{selectedSpeaker.contact_phone && <a href={`tel:${selectedSpeaker.contact_phone}`}>{selectedSpeaker.contact_phone}</a>}{selectedSpeaker.contact_website && <a href={selectedSpeaker.contact_website.startsWith("http") ? selectedSpeaker.contact_website : `https://${selectedSpeaker.contact_website}`} target="_blank" rel="noreferrer">Sitio web ↗</a>}</div>}{selectedSpeaker.video_url && <video src={selectedSpeaker.video_url} controls preload="metadata" />}</div></section></div>}
+
+      {selectedProgramItem && <div className="modal-backdrop speaker-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedProgramItem(null); }}><section className="program-modal" role="dialog" aria-modal="true" aria-labelledby="program-modal-title"><button className="modal-close" aria-label="Cerrar detalle" onClick={() => setSelectedProgramItem(null)}>×</button><p className="section-kicker">{selectedProgramItem.type} · {programTimeLabel(selectedProgramItem)}</p><h2 id="program-modal-title">{selectedProgramItem.title}</h2><strong>{selectedProgramItem.description}</strong><p>{selectedProgramItem.details || "Los detalles de este espacio se actualizarán desde el administrador."}</p></section></div>}
 
       {registration && <div className="modal-backdrop" role="presentation" onMouseDown={() => setRegistration(null)}>
         <div className="registration-modal" role="dialog" aria-modal="true" aria-labelledby="reg-title" onMouseDown={event => event.stopPropagation()}>
