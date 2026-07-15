@@ -13,15 +13,18 @@ type DashboardData = {
 };
 
 type SiteContent = { title: string; date: string; place: string; description: string; live: boolean };
-type Section = "Resumen" | "Contenido" | "Programa" | "Ponentes" | "Problemas" | "Transmisión";
+type Section = "Resumen" | "Contenido" | "Inscritos" | "Programa" | "Ponentes" | "Problemas" | "Transmisión";
 type SpeakerDraft = Omit<EventSpeaker, "id">;
 type ProgramDraft = Omit<EventProgramItem, "id">;
+type Registration = { id: number; user_id: string | null; modality: string; name: string; email: string; phone: string; attendee_type: string; profession: string | null; license: string | null; institution: string | null; country: string; department: string | null; status: string; created_at: string };
+type RegistrationDraft = Omit<Registration, "id" | "user_id" | "created_at">;
 
 const emptyDashboard: DashboardData = { daysRemaining: 0, metrics: { total: 0, presencial: 0, virtual: 0, waitlist: 0, available: 250, capacity: 250 }, recent: [], problems: { open: 0, recent: [] } };
 const emptySpeaker: SpeakerDraft = { name: "", professional_title: "", talk_title: "", talk_time: "", program_item_id: null, bio: "", photo_url: null, video_url: null, contact_email: "", contact_phone: "", contact_website: "", display_order: 0, is_published: false };
 const emptyProgramItem: ProgramDraft = { start_time: "", end_time: "", type: "", title: "", description: "", details: "", display_order: 0, is_published: true };
-const sections: Section[] = ["Resumen", "Contenido", "Programa", "Ponentes", "Problemas", "Transmisión"];
-const navIcons = ["◇", "✎", "☷", "◉", "!", "▶"];
+const emptyRegistration: RegistrationDraft = { modality: "presencial", name: "", email: "", phone: "", attendee_type: "general", profession: "", license: "", institution: "", country: "Guatemala", department: "", status: "confirmed" };
+const sections: Section[] = ["Resumen", "Contenido", "Inscritos", "Programa", "Ponentes", "Problemas", "Transmisión"];
+const navIcons = ["◇", "✎", "▤", "☷", "◉", "!", "▶"];
 
 function displayProgramOption(item: EventProgramItem) {
   return `${programTimeLabel(item)} · ${item.type} · ${item.title}`;
@@ -32,10 +35,13 @@ export default function AdminDashboard({ userName }: { userName: string }) {
   const [dashboard, setDashboard] = useState(emptyDashboard);
   const [speakers, setSpeakers] = useState<EventSpeaker[]>([]);
   const [program, setProgram] = useState<EventProgramItem[]>([]);
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [selectedSpeakerId, setSelectedSpeakerId] = useState<number | "new">("new");
   const [selectedProgramId, setSelectedProgramId] = useState<number | "new">("new");
+  const [selectedRegistrationId, setSelectedRegistrationId] = useState<number | null>(null);
   const [speakerDraft, setSpeakerDraft] = useState<SpeakerDraft>(emptySpeaker);
   const [programDraft, setProgramDraft] = useState<ProgramDraft>(emptyProgramItem);
+  const [registrationDraft, setRegistrationDraft] = useState<RegistrationDraft>(emptyRegistration);
   const [content, setContent] = useState<SiteContent>({ title: "Cuando el Duelo se Detiene", date: "15 de agosto de 2026", place: "Chimaltenango", description: "Jornada Clínica sobre Duelo Prolongado.", live: false });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,15 +52,17 @@ export default function AdminDashboard({ userName }: { userName: string }) {
 
   async function loadAll() {
     setLoading(true);
-    const [dashboardResponse, speakersResponse, contentResponse, programResponse] = await Promise.all([
+    const [dashboardResponse, speakersResponse, contentResponse, programResponse, registrationsResponse] = await Promise.all([
       fetch("/api/admin/dashboard"),
       fetch("/api/admin/speakers"),
       fetch("/api/admin/content"),
       fetch("/api/admin/program"),
+      fetch("/api/admin/registrations"),
     ]);
     if (dashboardResponse.ok) setDashboard(await dashboardResponse.json());
     if (speakersResponse.ok) setSpeakers((await speakersResponse.json()).speakers);
     if (programResponse.ok) setProgram((await programResponse.json()).program);
+    if (registrationsResponse.ok) setRegistrations((await registrationsResponse.json()).registrations);
     if (contentResponse.ok) {
       const saved = await contentResponse.json();
       setContent(current => ({ ...current, ...saved, live: Boolean(saved.live) }));
@@ -64,11 +72,12 @@ export default function AdminDashboard({ userName }: { userName: string }) {
 
   useEffect(() => {
     let ignore = false;
-    Promise.all([fetch("/api/admin/dashboard"), fetch("/api/admin/speakers"), fetch("/api/admin/content"), fetch("/api/admin/program")]).then(async ([dashboardResponse, speakersResponse, contentResponse, programResponse]) => {
+    Promise.all([fetch("/api/admin/dashboard"), fetch("/api/admin/speakers"), fetch("/api/admin/content"), fetch("/api/admin/program"), fetch("/api/admin/registrations")]).then(async ([dashboardResponse, speakersResponse, contentResponse, programResponse, registrationsResponse]) => {
       if (ignore) return;
       if (dashboardResponse.ok) setDashboard(await dashboardResponse.json());
       if (speakersResponse.ok) setSpeakers((await speakersResponse.json()).speakers);
       if (programResponse.ok) setProgram((await programResponse.json()).program);
+      if (registrationsResponse.ok) setRegistrations((await registrationsResponse.json()).registrations);
       if (contentResponse.ok) {
         const saved = await contentResponse.json();
         setContent(current => ({ ...current, ...saved, live: Boolean(saved.live) }));
@@ -114,6 +123,30 @@ export default function AdminDashboard({ userName }: { userName: string }) {
     setProgramDraft(draft);
   }
 
+  function selectRegistration(registration?: Registration) {
+    if (!registration) {
+      setSelectedRegistrationId(null);
+      setRegistrationDraft(emptyRegistration);
+      return;
+    }
+    const draft: RegistrationDraft = {
+      modality: registration.modality,
+      name: registration.name,
+      email: registration.email,
+      phone: registration.phone,
+      attendee_type: registration.attendee_type,
+      profession: registration.profession ?? "",
+      license: registration.license ?? "",
+      institution: registration.institution ?? "",
+      country: registration.country,
+      department: registration.department ?? "",
+      status: registration.status,
+    };
+    const { id } = registration;
+    setSelectedRegistrationId(id);
+    setRegistrationDraft(draft);
+  }
+
   async function saveSpeaker() {
     if (!speakerDraft.name.trim()) { flash("Escribe el nombre del ponente."); return; }
     setSaving(true);
@@ -142,6 +175,19 @@ export default function AdminDashboard({ userName }: { userName: string }) {
     flash("Programa actualizado correctamente.");
   }
 
+  async function saveRegistration() {
+    if (!selectedRegistrationId) { flash("Selecciona un inscrito."); return; }
+    if (!registrationDraft.name.trim()) { flash("Escribe el nombre del inscrito."); return; }
+    setSaving(true);
+    const response = await fetch("/api/admin/registrations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selectedRegistrationId, ...registrationDraft }) });
+    const result = await response.json();
+    setSaving(false);
+    if (!response.ok) { flash(result.error ?? "No se pudo guardar el inscrito."); return; }
+    await loadAll();
+    selectRegistration(result.registration as Registration);
+    flash("Inscripción actualizada.");
+  }
+
   async function removeSpeaker() {
     if (selectedSpeakerId === "new" || !window.confirm("¿Eliminar este ponente? Esta acción no se puede deshacer.")) return;
     const response = await fetch(`/api/admin/speakers?id=${selectedSpeakerId}`, { method: "DELETE" });
@@ -158,6 +204,15 @@ export default function AdminDashboard({ userName }: { userName: string }) {
     selectProgramItem();
     await loadAll();
     flash("Bloque eliminado.");
+  }
+
+  async function removeRegistration() {
+    if (!selectedRegistrationId || !window.confirm("¿Borrar esta inscripción del evento? No se borrará el usuario global de Supabase.")) return;
+    const response = await fetch(`/api/admin/registrations?id=${selectedRegistrationId}`, { method: "DELETE" });
+    if (!response.ok) { flash("No se pudo borrar la inscripción."); return; }
+    selectRegistration();
+    await loadAll();
+    flash("Inscripción borrada del evento.");
   }
 
   async function uploadMedia(event: ChangeEvent<HTMLInputElement>, kind: "photo" | "video") {
@@ -177,17 +232,18 @@ export default function AdminDashboard({ userName }: { userName: string }) {
   function saveCurrentSection() {
     if (active === "Ponentes") return saveSpeaker();
     if (active === "Programa") return saveProgramItem();
+    if (active === "Inscritos") return saveRegistration();
     return saveContent();
   }
 
   return <main className="admin-shell">
     <aside className="admin-sidebar">
       <Link className="admin-brand" href="/"><span className="brand-mark">EC</span><b>Encuentro Clínico</b></Link>
-      <nav>{sections.map((item, index) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}><span>{navIcons[index]}</span>{item}{item === "Programa" && program.length > 0 && <i>{program.length}</i>}{item === "Ponentes" && speakers.length > 0 && <i>{speakers.length}</i>}{item === "Problemas" && dashboard.problems.open > 0 && <i className="alert-dot">{dashboard.problems.open}</i>}</button>)}</nav>
+      <nav>{sections.map((item, index) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}><span>{navIcons[index]}</span>{item}{item === "Inscritos" && registrations.length > 0 && <i>{registrations.length}</i>}{item === "Programa" && program.length > 0 && <i>{program.length}</i>}{item === "Ponentes" && speakers.length > 0 && <i>{speakers.length}</i>}{item === "Problemas" && dashboard.problems.open > 0 && <i className="alert-dot">{dashboard.problems.open}</i>}</button>)}</nav>
       <div className="admin-user"><span>{userName.slice(0, 2).toUpperCase()}</span><div><b>{userName}</b><small>Administrador</small></div><form action="/api/auth/logout" method="post"><button aria-label="Cerrar sesión">→</button></form></div>
     </aside>
     <section className="admin-main">
-      <header><div><p>Panel de administración</p><h1>{active}</h1></div><div className="admin-header-actions"><Link href="/" target="_blank">Ver sitio ↗</Link>{["Contenido", "Programa", "Ponentes", "Transmisión"].includes(active) && <button className="admin-save" disabled={saving} onClick={saveCurrentSection}>{saving ? "Guardando…" : "Guardar cambios"}</button>}</div></header>
+      <header><div><p>Panel de administración</p><h1>{active}</h1></div><div className="admin-header-actions"><Link href="/" target="_blank">Ver sitio ↗</Link>{["Contenido", "Inscritos", "Programa", "Ponentes", "Transmisión"].includes(active) && <button className="admin-save" disabled={saving || (active === "Inscritos" && !selectedRegistrationId)} onClick={saveCurrentSection}>{saving ? "Guardando…" : "Guardar cambios"}</button>}</div></header>
       {message && <div className="admin-toast" role="status">{message}</div>}
 
       {active === "Resumen" && <div className="admin-content">
@@ -197,6 +253,11 @@ export default function AdminDashboard({ userName }: { userName: string }) {
       </div>}
 
       {active === "Contenido" && <div className="admin-content editor-page"><div className="panel"><p className="admin-kicker">PORTADA DEL SITIO</p><h2>Información principal</h2><label>Título del evento<input value={content.title} onChange={event => setContent({ ...content, title: event.target.value })} /></label><label>Fecha<input value={content.date} onChange={event => setContent({ ...content, date: event.target.value })} /></label><label>Lugar<input value={content.place} onChange={event => setContent({ ...content, place: event.target.value })} /></label><label>Descripción<textarea rows={5} value={content.description} onChange={event => setContent({ ...content, description: event.target.value })} /></label></div><div className="panel preview-card"><p>VISTA PREVIA</p><div><small>{content.date} · {content.place}</small><h3>{content.title}</h3><p>{content.description}</p></div></div></div>}
+
+      {active === "Inscritos" && <div className="admin-content speaker-admin registrations-admin">
+        <aside className="panel speaker-list"><div className="panel-title"><h3>Inscritos</h3><span>{registrations.length}</span></div>{registrations.length === 0 ? <div className="admin-empty"><b>No hay inscritos.</b><p>Cuando se registren participantes, aparecerán aquí.</p></div> : registrations.map(registration => <button key={registration.id} className={selectedRegistrationId === registration.id ? "selected" : ""} onClick={() => selectRegistration(registration)}><span>{registration.name.slice(0, 1)}</span><div><b>{registration.name}</b><small>{registration.modality === "presencial" ? "Presencial" : "Virtual"} · {registration.status === "waitlist" ? "Lista de espera" : "Confirmada"} · {registration.email}</small></div></button>)}</aside>
+        <section className="panel speaker-editor"><div className="panel-title"><h3>{selectedRegistrationId ? "Editar inscrito" : "Selecciona un inscrito"}</h3>{selectedRegistrationId && <button className="danger-link" onClick={removeRegistration}>Borrar inscripción</button>}</div>{selectedRegistrationId ? <><p className="admin-note">Estos cambios aplican solo al registro del evento. Para proteger otras apps, no se borra ni modifica el usuario global de Supabase.</p><div className="speaker-form-grid"><label>Nombre completo<input value={registrationDraft.name} onChange={event => setRegistrationDraft({ ...registrationDraft, name: event.target.value })} /></label><label>Correo del registro<input type="email" value={registrationDraft.email} onChange={event => setRegistrationDraft({ ...registrationDraft, email: event.target.value })} /></label><label>Teléfono<input inputMode="numeric" value={registrationDraft.phone} onChange={event => setRegistrationDraft({ ...registrationDraft, phone: event.target.value.replace(/\D/g, "") })} /></label><label>Modalidad<select value={registrationDraft.modality} onChange={event => setRegistrationDraft({ ...registrationDraft, modality: event.target.value })}><option value="presencial">Presencial</option><option value="virtual">Virtual</option></select></label><label>Estado<select value={registrationDraft.status} onChange={event => setRegistrationDraft({ ...registrationDraft, status: event.target.value })}><option value="confirmed">Confirmada</option><option value="waitlist">Lista de espera</option><option value="cancelled">Cancelada</option></select></label><label>Perfil<select value={registrationDraft.attendee_type} onChange={event => setRegistrationDraft({ ...registrationDraft, attendee_type: event.target.value })}><option value="general">General</option><option value="student">Estudiante</option><option value="professional">Profesional</option></select></label><label>Profesión<input value={registrationDraft.profession ?? ""} onChange={event => setRegistrationDraft({ ...registrationDraft, profession: event.target.value })} /></label><label>Número de colegiado<input inputMode="numeric" value={registrationDraft.license ?? ""} onChange={event => setRegistrationDraft({ ...registrationDraft, license: event.target.value.replace(/\D/g, "") })} /></label><label>Institución / Universidad<input value={registrationDraft.institution ?? ""} onChange={event => setRegistrationDraft({ ...registrationDraft, institution: event.target.value })} /></label><label>País<input value={registrationDraft.country} onChange={event => setRegistrationDraft({ ...registrationDraft, country: event.target.value })} /></label><label>Departamento<input value={registrationDraft.department ?? ""} onChange={event => setRegistrationDraft({ ...registrationDraft, department: event.target.value })} /></label></div></> : <div className="admin-empty"><b>Elige un registro.</b><p>Podrás corregir datos, cambiar estado o borrar la inscripción del evento.</p></div>}</section>
+      </div>}
 
       {active === "Programa" && <div className="admin-content speaker-admin program-admin">
         <aside className="panel speaker-list"><div className="panel-title"><h3>Programa</h3><button onClick={() => selectProgramItem()}>+ Nuevo</button></div>{program.length === 0 ? <div className="admin-empty"><b>No hay bloques.</b><p>Crea el programa completo de la actividad.</p></div> : program.map(item => <button key={item.id} className={selectedProgramId === item.id ? "selected" : ""} onClick={() => selectProgramItem(item)}><span>{item.display_order}</span><div><b>{item.title}</b><small>{programTimeLabel(item)} · {item.type || "Sin tipo"} · {item.is_published ? "Visible" : "Oculto"}</small></div></button>)}</aside>

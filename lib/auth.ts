@@ -55,7 +55,16 @@ export async function findAuthUserIdByEmail(email: string) {
 export async function startParticipantSession(user: AuthUser) {
   const jar = await cookies();
   const secure = process.env.NODE_ENV === "production";
+  jar.delete(ACCESS_COOKIE);
+  jar.delete(REFRESH_COOKIE);
   jar.set(PARTICIPANT_COOKIE, encodeParticipantSession(user), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+}
+
+async function isEventParticipant(userId: string) {
+  const response = await restFetch(`encuentro_psicologico_profiles?select=user_id&user_id=eq.${encodeURIComponent(userId)}&limit=1`);
+  if (!response.ok) return false;
+  const rows = await response.json() as Array<{ user_id: string }>;
+  return rows.length > 0;
 }
 
 async function findParticipantByPhone(email: string, phone: string) {
@@ -71,10 +80,16 @@ async function findParticipantByPhone(email: string, phone: string) {
 }
 
 export async function signIn(email: string, password: string) {
-  const normalizedPhone = password.replace(/\s+/g, "");
-  const response = await authFetch("token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password: normalizedPhone }) });
-  if (!response.ok) return findParticipantByPhone(email, normalizedPhone);
+  const normalizedPhone = password.replace(/\D/g, "");
+  if (normalizedPhone.length >= 8) {
+    const participant = await findParticipantByPhone(email, normalizedPhone);
+    if (participant) return participant;
+  }
+
+  const response = await authFetch("token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) });
+  if (!response.ok) return null;
   const session = await response.json() as { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
+  if (session.user.app_metadata?.encuentro_psicologico_role !== "admin") return null;
   await storeSession(session);
   return session.user;
 }
@@ -129,6 +144,9 @@ export async function requireUser(returnTo = "/mi-cuenta") {
   const user = await currentUser({ refresh: false });
   if (!user && await hasRefreshSession()) redirect(`/api/auth/refresh?next=${encodeURIComponent(returnTo)}`);
   if (!user) redirect(`/acceso?next=${encodeURIComponent(returnTo)}`);
+  const isAdmin = user.app_metadata?.encuentro_psicologico_role === "admin";
+  const isParticipant = user.app_metadata?.encuentro_psicologico_role === "participant" || await isEventParticipant(user.id);
+  if (!isAdmin && !isParticipant) redirect(`/api/auth/clear?next=${encodeURIComponent(`/acceso?next=${encodeURIComponent(returnTo)}`)}`);
   return user;
 }
 
@@ -136,6 +154,7 @@ export async function requireAdmin() {
   const user = await currentUser({ refresh: false });
   if (!user && await hasRefreshSession()) redirect(`/api/auth/refresh?next=${encodeURIComponent("/admin")}`);
   if (!user) redirect("/acceso?next=/admin");
+  if (user.app_metadata?.encuentro_psicologico_role !== "admin" && !await isEventParticipant(user.id)) redirect(`/api/auth/clear?next=${encodeURIComponent("/acceso?next=/admin")}`);
   if (user.app_metadata?.encuentro_psicologico_role !== "admin") redirect("/mi-cuenta");
   return user;
 }

@@ -13,7 +13,10 @@ export async function POST(request: Request) {
   let user = await signIn(email, phone);
   if (!user) {
     const created = await createParticipant(email, phone, { full_name: data.name, phone });
-    if (created) user = await signIn(email, phone);
+    if (created) {
+      user = { id: created.id, email, app_metadata: { encuentro_psicologico_role: "participant" }, eventOnly: true };
+      await startParticipantSession(user);
+    }
     else {
       const existingUserId = await findAuthUserIdByEmail(email);
       if (!existingUserId) return Response.json({ error: "No se pudo crear la cuenta de participante." }, { status: 503 });
