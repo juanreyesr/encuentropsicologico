@@ -92,22 +92,31 @@ async function storeSession(session: { access_token: string; refresh_token: stri
   jar.set(REFRESH_COOKIE, session.refresh_token, { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
 }
 
-export async function currentUser(): Promise<AuthUser | null> {
+export async function refreshSession(): Promise<AuthUser | null> {
+  const jar = await cookies();
+  const refresh = jar.get(REFRESH_COOKIE)?.value;
+  if (!refresh) return null;
+  const refreshed = await authFetch("token?grant_type=refresh_token", { method: "POST", body: JSON.stringify({ refresh_token: refresh }) });
+  if (!refreshed.ok) return null;
+  const session = await refreshed.json() as { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
+  await storeSession(session);
+  return session.user;
+}
+
+export async function hasRefreshSession() {
+  const jar = await cookies();
+  return Boolean(jar.get(REFRESH_COOKIE)?.value);
+}
+
+export async function currentUser(options: { refresh?: boolean } = {}): Promise<AuthUser | null> {
+  const shouldRefresh = options.refresh ?? true;
   const jar = await cookies();
   const access = jar.get(ACCESS_COOKIE)?.value;
   if (access) {
     const response = await authFetch("user", {}, access);
     if (response.ok) return response.json() as Promise<AuthUser>;
   }
-  const refresh = jar.get(REFRESH_COOKIE)?.value;
-  if (refresh) {
-    const refreshed = await authFetch("token?grant_type=refresh_token", { method: "POST", body: JSON.stringify({ refresh_token: refresh }) });
-    if (refreshed.ok) {
-      const session = await refreshed.json() as { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
-      await storeSession(session);
-      return session.user;
-    }
-  }
+  if (shouldRefresh) return await refreshSession() ?? decodeParticipantSession(jar.get(PARTICIPANT_COOKIE)?.value);
   return decodeParticipantSession(jar.get(PARTICIPANT_COOKIE)?.value);
 }
 
@@ -117,13 +126,15 @@ export async function clearSession() {
 }
 
 export async function requireUser(returnTo = "/mi-cuenta") {
-  const user = await currentUser();
+  const user = await currentUser({ refresh: false });
+  if (!user && await hasRefreshSession()) redirect(`/api/auth/refresh?next=${encodeURIComponent(returnTo)}`);
   if (!user) redirect(`/acceso?next=${encodeURIComponent(returnTo)}`);
   return user;
 }
 
 export async function requireAdmin() {
-  const user = await currentUser();
+  const user = await currentUser({ refresh: false });
+  if (!user && await hasRefreshSession()) redirect(`/api/auth/refresh?next=${encodeURIComponent("/admin")}`);
   if (!user) redirect("/acceso?next=/admin");
   if (user.app_metadata?.encuentro_psicologico_role !== "admin") redirect("/mi-cuenta");
   return user;
