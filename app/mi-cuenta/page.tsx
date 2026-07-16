@@ -27,7 +27,7 @@ export default async function AccountPage() {
 
   return <main className="account-page">
     <header>
-      <Link href="/" className="access-brand"><img src="/duelo-simbolo.png" alt="" /> Encuentro Clínico</Link>
+      <Link href="/" className="access-brand"><img src="/logo-duelo-arbol-morado.png" alt="" /> Encuentro Clínico</Link>
       <form action="/api/auth/logout" method="post"><button>Cerrar sesión</button></form>
     </header>
     <section>

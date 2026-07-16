@@ -243,7 +243,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
 
   return <main className="admin-shell">
     <aside className="admin-sidebar">
-      <Link className="admin-brand" href="/"><span className="brand-mark">EC</span><b>Encuentro Clínico</b></Link>
+      <Link className="admin-brand" href="/"><img src="/logo-duelo-arbol-morado.png" alt="" /><b>Encuentro Clínico</b></Link>
       <nav>{sections.map((item, index) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}><span>{navIcons[index]}</span>{item}{item === "Inscritos" && registrations.length > 0 && <i>{registrations.length}</i>}{item === "Programa" && program.length > 0 && <i>{program.length}</i>}{item === "Ponentes" && speakers.length > 0 && <i>{speakers.length}</i>}{item === "Red profesional" && (dashboard.metrics.networkOptIns ?? 0) > 0 && <i>{dashboard.metrics.networkOptIns}</i>}{item === "Problemas" && dashboard.problems.open > 0 && <i className="alert-dot">{dashboard.problems.open}</i>}</button>)}</nav>
       <div className="admin-user"><span>{userName.slice(0, 2).toUpperCase()}</span><div><b>{userName}</b><small>Administrador</small></div><form action="/api/auth/logout" method="post"><button aria-label="Cerrar sesión">→</button></form></div>
     </aside>

@@ -145,7 +145,7 @@ export default function Home() {
       <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <header className="topbar">
         <a className="brand" href="#inicio" aria-label="Inicio Encuentro Clínico">
-          <img className="brand-logo" src="/duelo-simbolo.png" alt="" /><span>ENCUENTRO<br /><b>CLÍNICO</b></span>
+          <img className="brand-logo" src="/logo-duelo-arbol-morado.png" alt="" /><span>ENCUENTRO<br /><b>CLÍNICO</b></span>
         </a>
         <nav aria-label="Navegación principal">
           <a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a>
