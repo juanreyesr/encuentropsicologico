@@ -1,8 +1,8 @@
 import { isEventAdmin } from "../../../../lib/admin";
 import { supabaseServerFetch } from "../../../../lib/supabase-server";
 
-const fields = "id,user_id,modality,name,email,phone,attendee_type,profession,license,institution,country,department,status,created_at";
-const allowed = ["modality", "name", "email", "phone", "attendee_type", "profession", "license", "institution", "country", "department", "status"] as const;
+const fields = "id,user_id,modality,name,email,phone,attendee_type,profession,license,institution,country,department,status,professional_network_opt_in,created_at";
+const allowed = ["modality", "name", "email", "phone", "attendee_type", "profession", "license", "institution", "country", "department", "status", "professional_network_opt_in"] as const;
 
 function digits(value: unknown) {
   return String(value ?? "").replace(/\D/g, "");
@@ -13,6 +13,7 @@ function clean(input: Record<string, unknown>) {
   for (const key of allowed) {
     if (!(key in input)) continue;
     if (key === "phone" || key === "license") result[key] = digits(input[key]);
+    else if (key === "professional_network_opt_in") result[key] = Boolean(input[key]);
     else if (key === "email") result[key] = String(input[key] ?? "").trim().toLowerCase();
     else result[key] = String(input[key] ?? "").trim();
   }
@@ -47,7 +48,7 @@ export async function PATCH(request: Request) {
   if (typeof data.name === "string" && data.name.length < 3) return Response.json({ error: "Escribe un nombre válido." }, { status: 400 });
   const response = await supabaseServerFetch(`encuentro_psicologico_registrations?id=eq.${id}&select=${fields}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(data) });
   if (!response.ok) return Response.json({ error: "No se pudo actualizar la inscripción." }, { status: 503 });
-  const [registration] = await response.json() as Array<{ user_id?: string | null; name: string; phone: string; attendee_type: string; profession?: string; license?: string; institution?: string; country: string; department?: string }>;
+  const [registration] = await response.json() as Array<{ user_id?: string | null; name: string; phone: string; attendee_type: string; profession?: string; license?: string; institution?: string; country: string; department?: string; professional_network_opt_in?: boolean }>;
   if (registration?.user_id) {
     await supabaseServerFetch(`encuentro_psicologico_profiles?user_id=eq.${encodeURIComponent(registration.user_id)}`, {
       method: "PATCH",
@@ -61,6 +62,7 @@ export async function PATCH(request: Request) {
         institution: registration.institution,
         country: registration.country,
         department: registration.department,
+        professional_network_opt_in: Boolean(registration.professional_network_opt_in),
         updated_at: new Date().toISOString(),
       }),
     });

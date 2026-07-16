@@ -47,6 +47,7 @@ export async function POST(request: Request) {
       p_waitlist: Boolean(data.waitlist),
       p_user_id: user.id,
       p_department: data.department || null,
+      p_professional_network_opt_in: Boolean(data.professionalNetworkOptIn),
     }),
   });
   if (!response.ok) return Response.json({ error: "No fue posible completar la inscripción." }, { status: 503 });
