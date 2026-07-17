@@ -188,10 +188,7 @@ export default function Home() {
 
       <section id="agenda" className="agenda-section section-pad">
         <div className="section-head"><div><p className="section-kicker">CRONOGRAMA · 8:30 A.M.–12:00 P.M.</p><h2>Tres horas y media,<br /><em>minuto a minuto.</em></h2></div><div className="event-date-card"><b>15</b><span>AGOSTO<br />2026</span></div></div>
-        <div className="agenda-list">{visibleAgenda.map((item, i) => {
-          const linkedSpeaker = speakerForProgramItem(item);
-          return <article key={item.id}><time>{programTimeLabel(item)}</time><span className={`tag tag-${i % 3}`}>{item.type}</span><div><h3>{item.title}</h3><p>{linkedSpeaker ? linkedSpeaker.name : item.description}</p></div><button aria-label={`Ver detalles de ${item.title}`} onClick={() => openProgramDetail(item)}>+</button></article>;
-        })}</div>
+        <div className="agenda-list">{visibleAgenda.map((item, i) => <article key={item.id}><time>{programTimeLabel(item)}</time><span className={`tag tag-${i % 3}`}>{item.type}</span><div><h3>{item.title}</h3><p>{item.description}</p></div><button aria-label={`Ver detalles de ${item.title}`} onClick={() => openProgramDetail(item)}>+</button></article>)}</div>
         <a className="text-link" href="#recursos">Descargar agenda completa <span>↓</span></a>
       </section>
 
