@@ -45,7 +45,7 @@ export default async function AccountPage() {
       </div>
       <ProfessionalNetworkEditor initialOptIn={Boolean(profile?.professional_network_opt_in)} initialDirectory={directory ?? null} />
       <CommunityLibrary />
-      <div className="account-resources"><h2>Materiales y recursos</h2>{resources.length ? resources.map(resource=><article key={resource.id}><div><b>{resource.title}</b><p>{resource.description}</p></div>{resource.file_url && <a href={resource.file_url} target="_blank" rel="noreferrer">Descargar ↓</a>}</article>) : <p>Los materiales aparecerán aquí cuando el administrador los publique.</p>}</div>
+      <details className="account-resources" open><summary><span>RECURSOS DEL ENCUENTRO</span><h2>Materiales y recursos <b aria-hidden="true">+</b></h2></summary><div className="account-resources-body">{resources.length ? resources.map(resource=><article key={resource.id}><div><b>{resource.title}</b><p>{resource.description}</p></div>{resource.file_url && <a href={resource.file_url} target="_blank" rel="noreferrer">Descargar ↓</a>}</article>) : <p>Los materiales aparecerán aquí cuando el administrador los publique.</p>}</div></details>
     </section>
   </main>;
 }
