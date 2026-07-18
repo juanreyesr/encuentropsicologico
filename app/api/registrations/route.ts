@@ -29,8 +29,11 @@ export async function POST(request: Request) {
   if (data.modality !== "presencial" && data.modality !== "virtual") return Response.json({ error: "Selecciona si tu asistencia será presencial o virtual." }, { status: 400 });
   const phone = digits(data.phone);
   const license = data.license ? digits(data.license) : null;
+  const profession = String(data.profession ?? "").trim();
   if (phone.length < 8) return Response.json({ error: "Ingresa un número de teléfono válido." }, { status: 400 });
   if (data.license && !license) return Response.json({ error: "El número de colegiado debe incluir solo números." }, { status: 400 });
+  if (data.attendeeType === "professional" && profession === "Psicólogo" && !license) return Response.json({ error: "El número de colegiado es obligatorio para psicólogos." }, { status: 400 });
+  if (!String(data.department ?? "").trim()) return Response.json({ error: "Selecciona tu departamento." }, { status: 400 });
 
   const response = await supabaseServerFetch("rpc/encuentro_psicologico_register", {
     method: "POST",
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
       p_email: data.email,
       p_phone: phone,
       p_attendee_type: data.attendeeType || "general",
-      p_profession: data.profession || null,
+      p_profession: profession || null,
       p_license: license,
       p_institution: data.institution || null,
       p_country: data.country || "Guatemala",

@@ -12,6 +12,7 @@ const guatemalaDepartments = [
 export default function Home() {
   const [registration, setRegistration] = useState<"presencial" | "virtual" | null>(null);
   const [professional, setProfessional] = useState(false);
+  const [professionalType, setProfessionalType] = useState("");
   const [student, setStudent] = useState(false);
   const [sent, setSent] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
@@ -64,6 +65,7 @@ export default function Home() {
     setWaitlisted(false);
     setRegistrationError("");
     setPhoneLookup({ status: "idle" });
+    setProfessionalType("");
     setRegistrationPhone("");
     setLoginEmail("");
     setSupportOpen(false);
@@ -266,9 +268,9 @@ export default function Home() {
               <label>Correo electrónico *<input required type="email" name="email" autoComplete="email" /></label>
               <div className="check-row"><label><input type="checkbox" checked={student} onChange={event => { setStudent(event.target.checked); if (event.target.checked) setProfessional(false); }} /> Soy estudiante</label><label><input type="checkbox" checked={professional} onChange={event => { setProfessional(event.target.checked); if (event.target.checked) setStudent(false); }} /> Soy profesional</label></div>
               {student && <label>Universidad / centro de estudios *<input required name="university" /></label>}
-              {professional && <><label>Profesión *<select required name="profession" defaultValue=""><option value="" disabled>Selecciona una profesión</option><option>Psicología clínica</option><option>Psicología educativa</option><option>Psicología industrial</option><option>Psiquiatría</option><option>Medicina</option><option>Trabajo social</option><option>Orientación</option><option>Otra profesión de salud</option></select></label><label>Número de colegiado *<input required inputMode="numeric" pattern="[0-9]*" name="license" onInput={keepOnlyDigits} /></label></>}
+              {professional && <><label>Profesión *<select required name="profession" value={professionalType} onChange={event => setProfessionalType(event.target.value)}><option value="" disabled>Selecciona una profesión</option><option>Psicólogo</option><option>Psiquiatra</option><option>Médico</option><option>Enfermería</option><option>Trabajo social</option><option>Orientación</option><option>Otras áreas de apoyo</option><option>Otra profesión</option></select></label><label>Número de colegiado {professionalType === "Psicólogo" ? "*" : "(opcional)"}<input required={professionalType === "Psicólogo"} inputMode="numeric" pattern="[0-9]*" name="license" onInput={keepOnlyDigits} /><small>{professionalType === "Psicólogo" ? "Requerido para validar el perfil profesional." : "Puedes dejarlo vacío si tu profesión no utiliza colegiado."}</small></label></>}
               <label>País *<select required name="country" defaultValue="Guatemala"><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Costa Rica</option><option>México</option><option>Otro</option></select></label>
-              {registration === "virtual" && <label>Departamento *<select required name="department" defaultValue=""><option value="" disabled>Selecciona departamento</option>{guatemalaDepartments.map(department => <option key={department}>{department}</option>)}</select></label>}
+              <label>Departamento *<select required name="department" defaultValue=""><option value="" disabled>Selecciona departamento</option>{guatemalaDepartments.map(department => <option key={department}>{department}</option>)}</select></label>
               <label className="consent professional-network-consent"><input type="checkbox" name="professionalNetworkOptIn" /> Quiero ser parte de una red profesional.</label>
               <label className="consent"><input required type="checkbox" /> Acepto el tratamiento de mis datos y la creación de mi cuenta de participante.</label>
               {registrationError && <p className="form-error">{registrationError}</p>}

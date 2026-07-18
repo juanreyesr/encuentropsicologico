@@ -1,5 +1,5 @@
 import { currentUser } from "../../../lib/auth";
-import { COMMUNITY_ALLOWED_FILES, COMMUNITY_BUCKET, COMMUNITY_MAX_FILE_SIZE, COMMUNITY_RIGHTS, communityStorageFetch, safeCommunityFilename, slugifyCommunityCategory } from "../../../lib/community-resources";
+import { COMMUNITY_ALLOWED_FILES, COMMUNITY_BUCKET, COMMUNITY_MAX_FILE_SIZE, communityStorageFetch, safeCommunityFilename, slugifyCommunityCategory } from "../../../lib/community-resources";
 import { supabaseServerFetch } from "../../../lib/supabase-server";
 import { randomUUID } from "crypto";
 
@@ -35,23 +35,16 @@ export async function GET() {
   const resources = await resourceResponse.json() as Resource[];
   const ownResources = (await ownResponse.json() as Resource[]).filter(item => item.status !== "removed");
   const rewardEvents = await rewardResponse.json() as Array<{ id: number; event_type: string }>;
-  const ownerIds = [...new Set(resources.map(item => item.owner_user_id))];
   const resourceIds = resources.map(item => item.id);
 
-  const [profilesResponse, downloadsResponse] = await Promise.all([
-    ownerIds.length ? supabaseServerFetch(`encuentro_psicologico_profiles?select=user_id,full_name&user_id=in.(${ownerIds.map(encodeURIComponent).join(",")})`) : null,
-    resourceIds.length ? supabaseServerFetch(`encuentro_psicologico_community_downloads?select=resource_id&resource_id=in.(${resourceIds.join(",")})`) : null,
-  ]);
-  const profiles = profilesResponse?.ok ? await profilesResponse.json() as Array<{ user_id: string; full_name: string }> : [];
+  const downloadsResponse = resourceIds.length ? await supabaseServerFetch(`encuentro_psicologico_community_downloads?select=resource_id&resource_id=in.(${resourceIds.join(",")})`) : null;
   const downloads = downloadsResponse?.ok ? await downloadsResponse.json() as Array<{ resource_id: number }> : [];
-  const names = new Map(profiles.map(item => [item.user_id, item.full_name]));
   const downloadCounts = downloads.reduce((map, item) => map.set(item.resource_id, (map.get(item.resource_id) ?? 0) + 1), new Map<number, number>());
 
   const groups = categories.map(category => ({
     ...category,
     resources: resources.filter(resource => resource.category_id === category.id).map(resource => ({
       ...resource,
-      contributor_name: names.get(resource.owner_user_id) ?? "Participante de la comunidad",
       download_count: downloadCounts.get(resource.id) ?? 0,
     })),
   })).filter(group => group.resources.length > 0);
@@ -65,6 +58,7 @@ export async function GET() {
       contributions: rewardEvents.filter(item => item.event_type === "contribution").length,
       usefulDownloads: rewardEvents.filter(item => item.event_type === "download").length,
     },
+    pendingContributions: ownResources.filter(item => item.status === "pending").length,
   });
 }
 
@@ -76,13 +70,12 @@ export async function POST(request: Request) {
   const title = String(form.get("title") ?? "").trim();
   const description = String(form.get("description") ?? "").trim();
   const sourceAuthor = String(form.get("sourceAuthor") ?? "").trim();
-  const rightsBasis = String(form.get("rightsBasis") ?? "");
+  const rightsBasis = "legal_source";
   const accepted = String(form.get("responsibilityAccepted") ?? "") === "true";
   let categoryId = Number(form.get("categoryId") ?? 0);
 
   if (!accepted) return Response.json({ error: "Debes aceptar la declaración de responsabilidad." }, { status: 400 });
   if (title.length < 3 || title.length > 160) return Response.json({ error: "Escribe un título de entre 3 y 160 caracteres." }, { status: 400 });
-  if (!COMMUNITY_RIGHTS.includes(rightsBasis as typeof COMMUNITY_RIGHTS[number])) return Response.json({ error: "Indica por qué puedes compartir este recurso." }, { status: 400 });
   if (!(file instanceof File) || file.size === 0) return Response.json({ error: "Selecciona el archivo que deseas compartir." }, { status: 400 });
   if (file.size > COMMUNITY_MAX_FILE_SIZE) return Response.json({ error: "El archivo supera el máximo de 25 MB." }, { status: 413 });
   if (!COMMUNITY_ALLOWED_FILES[file.type]) return Response.json({ error: "Formato no permitido. Usa PDF, Word, PowerPoint, Excel, JPG o PNG." }, { status: 415 });

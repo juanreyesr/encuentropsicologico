@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
   const user = await requireUser();
-  const [regResponse, resourceResponse, certificateResponse, capacityResponse, profileResponse, directoryResponse, rewardResponse] = await Promise.all([
+  const [regResponse, resourceResponse, certificateResponse, capacityResponse, profileResponse, directoryResponse, rewardResponse, pendingResourceResponse] = await Promise.all([
     supabaseServerFetch(`encuentro_psicologico_registrations?select=modality,status,name&user_id=eq.${user.id}`),
     supabaseServerFetch("encuentro_psicologico_resources?select=id,title,description,file_url&is_published=eq.true&order=created_at.desc"),
     supabaseServerFetch(`encuentro_psicologico_certificates?select=certificate_number,attendance_confirmed,issued_at&user_id=eq.${user.id}&limit=1`),
@@ -18,6 +18,7 @@ export default async function AccountPage() {
     supabaseServerFetch(`encuentro_psicologico_profiles?select=professional_network_opt_in&user_id=eq.${user.id}&limit=1`),
     supabaseServerFetch(`encuentro_psicologico_professional_directory?select=share_enabled,profession,specialty,address,email,whatsapp,website,instagram&user_id=eq.${user.id}&limit=1`),
     supabaseServerFetch(`encuentro_psicologico_community_reward_events?select=id&owner_user_id=eq.${user.id}`, { headers: { Prefer: "count=exact", Range: "0-0" } }),
+    supabaseServerFetch(`encuentro_psicologico_community_resources?select=id&owner_user_id=eq.${user.id}&status=eq.pending`, { headers: { Prefer: "count=exact", Range: "0-0" } }),
   ]);
   const registrations = regResponse.ok ? await regResponse.json() as Array<{ modality:string; status:string; name:string }> : [];
   const resources = resourceResponse.ok ? await resourceResponse.json() as Array<{ id:number; title:string; description?:string; file_url?:string }> : [];
@@ -26,6 +27,7 @@ export default async function AccountPage() {
   const [directory] = directoryResponse.ok ? await directoryResponse.json() as ProfessionalDirectory[] : [];
   const presencialCount = Number(capacityResponse.headers.get("content-range")?.split("/")[1] ?? 0);
   const communityStars = rewardResponse.ok ? Number(rewardResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
+  const pendingCommunityStars = pendingResourceResponse.ok ? Number(pendingResourceResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
   const canSwitchToVirtual = presencialCount >= EVENT_CAPACITY && registrations.some(item => item.modality === "presencial" && item.status === "confirmed");
 
   return <main className="account-page">
@@ -35,7 +37,7 @@ export default async function AccountPage() {
     </header>
     <section>
       <p className="section-kicker">ÁREA DEL PARTICIPANTE</p>
-      <div className="account-community-heading"><AccountNameEditor initialName={registrations[0]?.name ?? user.email} /><div className="account-community-score" title="Tus aportes a la comunidad"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 2.8 2.8 5.68 6.27.91-4.54 4.43 1.07 6.25L12 17.12l-5.6 2.95 1.07-6.25-4.54-4.43 6.27-.91L12 2.8Z" /></svg><b>{communityStars}</b><span>Tus aportes a la comunidad</span></div></div>
+      <div className="account-community-heading"><AccountNameEditor initialName={registrations[0]?.name ?? user.email} /><div className="account-community-score" title="Tus aportes a la comunidad"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 2.8 2.8 5.68 6.27.91-4.54 4.43 1.07 6.25L12 17.12l-5.6 2.95 1.07-6.25-4.54-4.43 6.27-.91L12 2.8Z" /></svg><div><b>{communityStars}</b><span>Tus aportes a la comunidad</span>{pendingCommunityStars > 0 && <small>+{pendingCommunityStars} pendiente{pendingCommunityStars === 1 ? "" : "s"} de aprobación</small>}</div></div></div>
       <p>Aquí encontrarás tu inscripción, materiales, constancia de participación y tus opciones de red profesional.</p>
       <div className="account-grid">
         <article><span>INSCRIPCIÓN</span><h2>{registrations.length ? "Confirmada" : "Pendiente"}</h2>{registrations.map(item=><p key={item.modality}>{item.modality === "presencial" ? "Presencial" : "Virtual"} · {item.status === "waitlist" ? "Lista de espera" : "Confirmada"}</p>)}{canSwitchToVirtual && <form action="/api/account/modality" method="post" className="switch-modality"><p>El cupo presencial está lleno. Si ya no puedes asistir presencialmente, puedes cambiarte a modalidad virtual y liberar tu espacio.</p><button className="secondary" type="submit">Cambiar mi asistencia a virtual</button></form>}</article>
