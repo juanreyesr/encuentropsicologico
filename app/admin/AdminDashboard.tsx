@@ -17,18 +17,20 @@ type DashboardData = {
 };
 
 type SiteContent = { title: string; date: string; place: string; description: string; live: boolean };
-type Section = "Resumen" | "Contenido" | "Inscritos" | "Programa" | "Ponentes" | "Red profesional" | "Problemas" | "Transmisión";
+type Section = "Resumen" | "Contenido" | "Inscritos" | "Programa" | "Ponentes" | "Red profesional" | "Biblioteca" | "Problemas" | "Transmisión";
 type SpeakerDraft = Omit<EventSpeaker, "id">;
 type ProgramDraft = Omit<EventProgramItem, "id">;
 type Registration = { id: number; user_id: string | null; modality: string; name: string; email: string; phone: string; attendee_type: string; profession: string | null; license: string | null; institution: string | null; country: string; department: string | null; status: string; professional_network_opt_in: boolean; created_at: string };
 type RegistrationDraft = Omit<Registration, "id" | "user_id" | "created_at">;
+type CommunityAdminResource = { id: number; owner_user_id: string; category_id: number; category_name: string; contributor_name: string; title: string; description: string | null; source_author: string | null; rights_basis: string; responsibility_accepted_at: string; original_filename: string; mime_type: string; size_bytes: number; status: string; moderation_reason: string | null; created_at: string };
+type CommunityAdminData = { resources: CommunityAdminResource[]; metrics: { pending: number; approved: number; rejected: number } };
 
 const emptyDashboard: DashboardData = { daysRemaining: 0, metrics: { total: 0, presencial: 0, virtual: 0, waitlist: 0, available: 250, capacity: 250, students: 0, professionals: 0, networkOptIns: 0, sharedDirectory: 0, guatemala: 0 }, recent: [], problems: { open: 0, recent: [] }, professionalNetwork: { optIns: [], shared: [] } };
 const emptySpeaker: SpeakerDraft = { name: "", professional_title: "", talk_title: "", talk_time: "", program_item_id: null, bio: "", photo_url: null, video_url: null, contact_email: "", contact_phone: "", contact_website: "", display_order: 0, is_published: false };
 const emptyProgramItem: ProgramDraft = { start_time: "", end_time: "", type: "", title: "", description: "", details: "", display_order: 0, is_published: true };
 const emptyRegistration: RegistrationDraft = { modality: "presencial", name: "", email: "", phone: "", attendee_type: "general", profession: "", license: "", institution: "", country: "Guatemala", department: "", status: "confirmed", professional_network_opt_in: false };
-const sections: Section[] = ["Resumen", "Contenido", "Inscritos", "Programa", "Ponentes", "Red profesional", "Problemas", "Transmisión"];
-const navIcons = ["◇", "✎", "▤", "☷", "◉", "♢", "!", "▶"];
+const sections: Section[] = ["Resumen", "Contenido", "Inscritos", "Programa", "Ponentes", "Red profesional", "Biblioteca", "Problemas", "Transmisión"];
+const navIcons = ["◇", "✎", "▤", "☷", "◉", "♢", "▧", "!", "▶"];
 
 function displayProgramOption(item: EventProgramItem) {
   return `${programTimeLabel(item)} · ${item.type} · ${item.title}`;
@@ -40,6 +42,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
   const [speakers, setSpeakers] = useState<EventSpeaker[]>([]);
   const [program, setProgram] = useState<EventProgramItem[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [community, setCommunity] = useState<CommunityAdminData>({ resources: [], metrics: { pending: 0, approved: 0, rejected: 0 } });
   const [selectedSpeakerId, setSelectedSpeakerId] = useState<number | "new">("new");
   const [selectedProgramId, setSelectedProgramId] = useState<number | "new">("new");
   const [selectedRegistrationId, setSelectedRegistrationId] = useState<number | null>(null);
@@ -56,17 +59,19 @@ export default function AdminDashboard({ userName }: { userName: string }) {
 
   async function loadAll() {
     setLoading(true);
-    const [dashboardResponse, speakersResponse, contentResponse, programResponse, registrationsResponse] = await Promise.all([
+    const [dashboardResponse, speakersResponse, contentResponse, programResponse, registrationsResponse, communityResponse] = await Promise.all([
       fetch("/api/admin/dashboard"),
       fetch("/api/admin/speakers"),
       fetch("/api/admin/content"),
       fetch("/api/admin/program"),
       fetch("/api/admin/registrations"),
+      fetch("/api/admin/community-resources"),
     ]);
     if (dashboardResponse.ok) setDashboard(await dashboardResponse.json());
     if (speakersResponse.ok) setSpeakers((await speakersResponse.json()).speakers);
     if (programResponse.ok) setProgram((await programResponse.json()).program);
     if (registrationsResponse.ok) setRegistrations((await registrationsResponse.json()).registrations);
+    if (communityResponse.ok) setCommunity(await communityResponse.json());
     if (contentResponse.ok) {
       const saved = await contentResponse.json();
       setContent(current => ({ ...current, ...saved, live: Boolean(saved.live) }));
@@ -76,12 +81,13 @@ export default function AdminDashboard({ userName }: { userName: string }) {
 
   useEffect(() => {
     let ignore = false;
-    Promise.all([fetch("/api/admin/dashboard"), fetch("/api/admin/speakers"), fetch("/api/admin/content"), fetch("/api/admin/program"), fetch("/api/admin/registrations")]).then(async ([dashboardResponse, speakersResponse, contentResponse, programResponse, registrationsResponse]) => {
+    Promise.all([fetch("/api/admin/dashboard"), fetch("/api/admin/speakers"), fetch("/api/admin/content"), fetch("/api/admin/program"), fetch("/api/admin/registrations"), fetch("/api/admin/community-resources")]).then(async ([dashboardResponse, speakersResponse, contentResponse, programResponse, registrationsResponse, communityResponse]) => {
       if (ignore) return;
       if (dashboardResponse.ok) setDashboard(await dashboardResponse.json());
       if (speakersResponse.ok) setSpeakers((await speakersResponse.json()).speakers);
       if (programResponse.ok) setProgram((await programResponse.json()).program);
       if (registrationsResponse.ok) setRegistrations((await registrationsResponse.json()).registrations);
+      if (communityResponse.ok) setCommunity(await communityResponse.json());
       if (contentResponse.ok) {
         const saved = await contentResponse.json();
         setContent(current => ({ ...current, ...saved, live: Boolean(saved.live) }));
@@ -220,6 +226,27 @@ export default function AdminDashboard({ userName }: { userName: string }) {
     flash("Inscripción borrada del evento.");
   }
 
+  async function moderateCommunityResource(id: number, status: "approved" | "rejected") {
+    const reason = status === "rejected" ? window.prompt("Indica brevemente por qué no se aprobará este recurso:") : "";
+    if (status === "rejected" && reason === null) return;
+    setSaving(true);
+    const response = await fetch("/api/admin/community-resources", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status, reason }) });
+    setSaving(false);
+    if (!response.ok) { flash("No se pudo actualizar el recurso."); return; }
+    await loadAll();
+    flash(status === "approved" ? "Recurso aprobado y publicado." : "Recurso marcado como no aprobado.");
+  }
+
+  async function removeCommunityResource(id: number) {
+    if (!window.confirm("¿Retirar y borrar el archivo de este recurso? También se descontarán las estrellas relacionadas.")) return;
+    setSaving(true);
+    const response = await fetch(`/api/admin/community-resources?id=${id}`, { method: "DELETE" });
+    setSaving(false);
+    if (!response.ok) { flash("No se pudo retirar el recurso."); return; }
+    await loadAll();
+    flash("Recurso retirado de la biblioteca.");
+  }
+
   async function uploadMedia(event: ChangeEvent<HTMLInputElement>, kind: "photo" | "video") {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -244,7 +271,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
   return <main className="admin-shell">
     <aside className="admin-sidebar">
       <Link className="admin-brand" href="/"><img src="/logo-duelo-arbol-morado.png" alt="" /><b>Encuentro Clínico</b></Link>
-      <nav>{sections.map((item, index) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}><span>{navIcons[index]}</span>{item}{item === "Inscritos" && registrations.length > 0 && <i>{registrations.length}</i>}{item === "Programa" && program.length > 0 && <i>{program.length}</i>}{item === "Ponentes" && speakers.length > 0 && <i>{speakers.length}</i>}{item === "Red profesional" && (dashboard.metrics.networkOptIns ?? 0) > 0 && <i>{dashboard.metrics.networkOptIns}</i>}{item === "Problemas" && dashboard.problems.open > 0 && <i className="alert-dot">{dashboard.problems.open}</i>}</button>)}</nav>
+      <nav>{sections.map((item, index) => <button key={item} className={active === item ? "active" : ""} onClick={() => setActive(item)}><span>{navIcons[index]}</span>{item}{item === "Inscritos" && registrations.length > 0 && <i>{registrations.length}</i>}{item === "Programa" && program.length > 0 && <i>{program.length}</i>}{item === "Ponentes" && speakers.length > 0 && <i>{speakers.length}</i>}{item === "Red profesional" && (dashboard.metrics.networkOptIns ?? 0) > 0 && <i>{dashboard.metrics.networkOptIns}</i>}{item === "Biblioteca" && community.metrics.pending > 0 && <i className="alert-dot">{community.metrics.pending}</i>}{item === "Problemas" && dashboard.problems.open > 0 && <i className="alert-dot">{dashboard.problems.open}</i>}</button>)}</nav>
       <div className="admin-user"><span>{userName.slice(0, 2).toUpperCase()}</span><div><b>{userName}</b><small>Administrador</small></div><form action="/api/auth/logout" method="post"><button aria-label="Cerrar sesión">→</button></form></div>
     </aside>
     <section className="admin-main">
@@ -290,6 +317,10 @@ export default function AdminDashboard({ userName }: { userName: string }) {
       {active === "Problemas" && <div className="admin-content"><article className="panel support-panel"><div className="panel-title"><h3>Problemas de acceso</h3><span className={dashboard.problems.open > 0 ? "problem-count has-problems" : "problem-count"}>{dashboard.problems.open} abiertos</span></div>{dashboard.problems.recent.length === 0 ? <div className="admin-empty"><b>No hay problemas reportados.</b><p>Cuando un participante indique que no puede iniciar sesión, aparecerá aquí.</p></div> : dashboard.problems.recent.map(problem => <div className={`support-issue ${problem.status === "open" ? "open" : ""}`} key={problem.id}><div><b>{problem.phone}</b><small>{new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(problem.created_at))}</small></div><p>{problem.problem}</p><span>{problem.status === "open" ? "Pendiente" : "Resuelto"}</span></div>)}</article></div>}
 
       {active === "Transmisión" && <div className="admin-content"><div className="panel transmission-editor"><p className="admin-kicker">CONTROL DE ACCESO</p><h2>Transmisión en vivo</h2><p>Actívala únicamente cuando la sala esté lista. El sitio público mostrará el acceso a los participantes.</p><label className="live-toggle large"><div><b>Mostrar transmisión</b><small>{content.live ? "Visible para participantes" : "Aún no disponible"}</small></div><input type="checkbox" checked={content.live} onChange={event => setContent({ ...content, live: event.target.checked })} /><i /></label></div></div>}
+      {active === "Biblioteca" && <div className="admin-content">
+        <div className="stat-grid community-admin-metrics"><article><span>Pendientes de revisión</span><b>{community.metrics.pending}</b><small>Requieren una decisión</small></article><article><span>Publicados</span><b>{community.metrics.approved}</b><small>Visibles para participantes</small></article><article><span>No aprobados</span><b>{community.metrics.rejected}</b><small>Conservados para seguimiento</small></article><article><span>Total gestionado</span><b>{community.resources.length}</b><small>Sin contar retirados</small></article></div>
+        <article className="panel"><div className="panel-title"><h3>Recursos aportados por la comunidad</h3><span>{community.resources.length}</span></div>{community.resources.length === 0 ? <div className="community-admin-empty"><b>Aún no hay recursos enviados.</b><p>Los aportes de participantes aparecerán aquí para revisión.</p></div> : <div className="community-admin-list">{community.resources.map(resource => <article className="community-admin-item" key={resource.id}><div><header><b>{resource.title}</b><span className={`community-status ${resource.status}`}>{resource.status === "pending" ? "Pendiente" : resource.status === "approved" ? "Publicado" : "No aprobado"}</span></header><p>{resource.description || "Sin descripción."}</p><small>{resource.category_name} · aportado por {resource.contributor_name} · {resource.original_filename} · {Math.max(1, Math.round(resource.size_bytes / 1024))} KB</small>{resource.source_author && <small>Autor o fuente: {resource.source_author}</small>}<small>Responsabilidad aceptada · {resource.rights_basis === "own" ? "Material propio" : resource.rights_basis === "authorized" ? "Cuenta con autorización" : resource.rights_basis === "open_license" ? "Licencia abierta" : "Dominio público"}</small>{resource.moderation_reason && <small>Nota: {resource.moderation_reason}</small>}</div><div className="community-admin-actions"><a href={`/api/community-resources/${resource.id}/download`} target="_blank" rel="noreferrer">Revisar archivo</a>{resource.status !== "approved" && <button className="approve" type="button" disabled={saving} onClick={() => moderateCommunityResource(resource.id, "approved")}>Aprobar</button>}{resource.status !== "rejected" && <button className="reject" type="button" disabled={saving} onClick={() => moderateCommunityResource(resource.id, "rejected")}>No aprobar</button>}<button className="remove" type="button" disabled={saving} onClick={() => removeCommunityResource(resource.id)}>Retirar</button></div></article>)}</div>}</article>
+      </div>}
     </section>
   </main>;
 }
