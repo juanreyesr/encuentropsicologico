@@ -23,6 +23,8 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [phoneLookup, setPhoneLookup] = useState<{ status: "idle" | "checking" | "found" | "not-found"; maskedEmail?: string; modality?: string; error?: string }>({ status: "idle" });
   const [registrationPhone, setRegistrationPhone] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState("Guatemala");
+  const [otherCountry, setOtherCountry] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
@@ -67,6 +69,8 @@ export default function Home() {
     setPhoneLookup({ status: "idle" });
     setProfessionalType("");
     setRegistrationPhone("");
+    setSelectedCountry("Guatemala");
+    setOtherCountry("");
     setLoginEmail("");
     setSupportOpen(false);
     setSupportProblem("");
@@ -117,7 +121,8 @@ export default function Home() {
     const accountResponse = await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: form.get("name"), email: form.get("email"), phone: form.get("phone") }) });
     const accountResult = await accountResponse.json();
     if (!accountResponse.ok) { setRegistrationError(accountResult.error ?? "No se pudo crear tu cuenta."); setSubmitting(false); return; }
-    const response = await fetch("/api/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modality: registration, waitlist: registration === "presencial" && full, name: form.get("name"), email: form.get("email"), phone: form.get("phone"), attendeeType: student ? "student" : professional ? "professional" : "general", profession: form.get("profession"), license: form.get("license"), institution: form.get("university"), country: form.get("country") || "Guatemala", department: form.get("department"), gender: form.get("gender"), professionalNetworkOptIn: form.get("professionalNetworkOptIn") === "on" }) });
+    const country = selectedCountry === "Otro" ? otherCountry.trim() : selectedCountry;
+    const response = await fetch("/api/registrations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modality: registration, waitlist: registration === "presencial" && full, name: form.get("name"), email: form.get("email"), phone: form.get("phone"), attendeeType: student ? "student" : professional ? "professional" : "general", profession: form.get("profession"), license: form.get("license"), institution: form.get("university"), country, department: selectedCountry === "Guatemala" ? form.get("department") : null, gender: form.get("gender"), professionalNetworkOptIn: form.get("professionalNetworkOptIn") === "on" }) });
     const result = await response.json();
     if (!response.ok) { if (response.status === 409) { setAvailable(0); setFull(true); } setRegistrationError(result.error ?? "No se pudo completar la inscripción."); setSubmitting(false); return; }
     setAvailable(result.available ?? available);
@@ -270,8 +275,8 @@ export default function Home() {
               <div className="check-row"><label><input type="checkbox" checked={student} onChange={event => { setStudent(event.target.checked); if (event.target.checked) setProfessional(false); }} /> Soy estudiante</label><label><input type="checkbox" checked={professional} onChange={event => { setProfessional(event.target.checked); if (event.target.checked) setStudent(false); }} /> Soy profesional</label></div>
               {student && <label>Universidad / centro de estudios *<input required name="university" /></label>}
               {professional && <><label>Profesión *<select required name="profession" value={professionalType} onChange={event => setProfessionalType(event.target.value)}><option value="" disabled>Selecciona una profesión</option><option>Psicólogo</option><option>Psiquiatra</option><option>Médico</option><option>Enfermería</option><option>Trabajo social</option><option>Orientación</option><option>Otras áreas de apoyo</option><option>Otra profesión</option></select></label><label>Número de colegiado {professionalType === "Psicólogo" ? "*" : "(opcional)"}<input required={professionalType === "Psicólogo"} inputMode="numeric" pattern="[0-9]*" name="license" onInput={keepOnlyDigits} /><small>{professionalType === "Psicólogo" ? "Requerido para validar el perfil profesional." : "Puedes dejarlo vacío si tu profesión no utiliza colegiado."}</small></label></>}
-              <label>País *<select required name="country" defaultValue="Guatemala"><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Costa Rica</option><option>México</option><option>Otro</option></select></label>
-              <label>Departamento *<select required name="department" defaultValue=""><option value="" disabled>Selecciona departamento</option>{guatemalaDepartments.map(department => <option key={department}>{department}</option>)}</select></label>
+              <label>País *<select required name="countryChoice" value={selectedCountry} onChange={event => setSelectedCountry(event.target.value)}><option>Guatemala</option><option>El Salvador</option><option>Honduras</option><option>Costa Rica</option><option>México</option><option>Otro</option></select></label>
+              {selectedCountry === "Otro" ? <label>Escribe tu país *<input required name="otherCountry" value={otherCountry} onChange={event => setOtherCountry(event.target.value)} autoComplete="country-name" /></label> : <label>Departamento {selectedCountry === "Guatemala" ? "*" : "(solo Guatemala)"}<select required={selectedCountry === "Guatemala"} disabled={selectedCountry !== "Guatemala"} name="department" defaultValue=""><option value="" disabled>{selectedCountry === "Guatemala" ? "Selecciona departamento" : "No aplica fuera de Guatemala"}</option>{guatemalaDepartments.map(department => <option key={department}>{department}</option>)}</select><small>{selectedCountry === "Guatemala" ? "Selecciona tu departamento." : "El departamento se habilita únicamente para Guatemala."}</small></label>}
               <label className="consent professional-network-consent"><input type="checkbox" name="professionalNetworkOptIn" /> Quiero ser parte de una red profesional.</label>
               <label className="consent"><input required type="checkbox" /> Acepto el tratamiento de mis datos y la creación de mi cuenta de participante.</label>
               {registrationError && <p className="form-error">{registrationError}</p>}

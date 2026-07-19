@@ -5,6 +5,7 @@ import Link from "next/link";
 import AccountNameEditor from "./AccountNameEditor";
 import ProfessionalNetworkEditor, { type ProfessionalDirectory } from "./ProfessionalNetworkEditor";
 import CommunityLibrary from "./CommunityLibrary";
+import AttendanceVerifier from "./AttendanceVerifier";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export default async function AccountPage() {
         <article><span>INSCRIPCIÓN</span><h2>{registrations.length ? "Confirmada" : "Pendiente"}</h2>{registrations.map(item=><p key={item.modality}>{item.modality === "presencial" ? "Presencial" : "Virtual"} · {item.status === "waitlist" ? "Lista de espera" : "Confirmada"}</p>)}{canSwitchToVirtual && <form action="/api/account/modality" method="post" className="switch-modality"><p>El cupo presencial está lleno. Si ya no puedes asistir presencialmente, puedes cambiarte a modalidad virtual y liberar tu espacio.</p><button className="secondary" type="submit">Cambiar mi asistencia a virtual</button></form>}</article>
         <article><span>CONSTANCIA</span><h2>{certificate?.attendance_confirmed ? "Disponible" : "Se habilitará después del evento"}</h2><p>La asistencia debe ser confirmada por la organización.</p>{certificate?.attendance_confirmed && <a className="primary" href="/api/account/certificate">Descargar constancia</a>}</article>
       </div>
+      <AttendanceVerifier isOrganizer={registrations.some(item => item.event_roles?.includes("organizer"))} />
       {registrations.some(item => item.event_roles?.includes("speaker")) && <details className="account-resources speaker-account-link"><summary><span>ESPACIO DE PONENTE</span><h2>Preguntas de tu conferencia <b aria-hidden="true">+</b></h2></summary><div className="account-resources-body"><p>Cuando la organización active las preguntas en vivo, aquí tendrás acceso a tu bandeja para marcar las que responderás durante el panel.</p><Link className="primary" href="/preguntas">Abrir preguntas recibidas</Link></div></details>}
       <CommunityLibrary />
       <ProfessionalNetworkEditor initialOptIn={Boolean(profile?.professional_network_opt_in)} initialDirectory={directory ?? null} />

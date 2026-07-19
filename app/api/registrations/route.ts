@@ -31,10 +31,13 @@ export async function POST(request: Request) {
   const license = data.license ? digits(data.license) : null;
   const profession = String(data.profession ?? "").trim();
   const gender = String(data.gender ?? "").trim();
+  const country = String(data.country ?? "Guatemala").trim();
+  const department = country === "Guatemala" ? String(data.department ?? "").trim() : null;
   if (phone.length < 8) return Response.json({ error: "Ingresa un número de teléfono válido." }, { status: 400 });
   if (data.license && !license) return Response.json({ error: "El número de colegiado debe incluir solo números." }, { status: 400 });
   if (data.attendeeType === "professional" && profession === "Psicólogo" && !license) return Response.json({ error: "El número de colegiado es obligatorio para psicólogos." }, { status: 400 });
-  if (!String(data.department ?? "").trim()) return Response.json({ error: "Selecciona tu departamento." }, { status: 400 });
+  if (!country) return Response.json({ error: "Indica tu país." }, { status: 400 });
+  if (country === "Guatemala" && !department) return Response.json({ error: "Selecciona tu departamento." }, { status: 400 });
   if (gender !== "Hombre" && gender !== "Mujer") return Response.json({ error: "Selecciona tu género." }, { status: 400 });
 
   const response = await supabaseServerFetch("rpc/encuentro_psicologico_register", {
@@ -48,10 +51,10 @@ export async function POST(request: Request) {
       p_profession: profession || null,
       p_license: license,
       p_institution: data.institution || null,
-      p_country: data.country || "Guatemala",
+      p_country: country,
       p_waitlist: Boolean(data.waitlist),
       p_user_id: user.id,
-      p_department: data.department || null,
+      p_department: department,
       p_professional_network_opt_in: Boolean(data.professionalNetworkOptIn),
     }),
   });
