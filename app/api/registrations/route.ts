@@ -30,10 +30,12 @@ export async function POST(request: Request) {
   const phone = digits(data.phone);
   const license = data.license ? digits(data.license) : null;
   const profession = String(data.profession ?? "").trim();
+  const gender = String(data.gender ?? "").trim();
   if (phone.length < 8) return Response.json({ error: "Ingresa un número de teléfono válido." }, { status: 400 });
   if (data.license && !license) return Response.json({ error: "El número de colegiado debe incluir solo números." }, { status: 400 });
   if (data.attendeeType === "professional" && profession === "Psicólogo" && !license) return Response.json({ error: "El número de colegiado es obligatorio para psicólogos." }, { status: 400 });
   if (!String(data.department ?? "").trim()) return Response.json({ error: "Selecciona tu departamento." }, { status: 400 });
+  if (gender !== "Hombre" && gender !== "Mujer") return Response.json({ error: "Selecciona tu género." }, { status: 400 });
 
   const response = await supabaseServerFetch("rpc/encuentro_psicologico_register", {
     method: "POST",
@@ -56,5 +58,10 @@ export async function POST(request: Request) {
   if (!response.ok) return Response.json({ error: "No fue posible completar la inscripción." }, { status: 503 });
   const result = await response.json() as { status: string; available: number; registration_status?: string };
   if (result.status === "full") return Response.json({ full: true, available: 0 }, { status: 409 });
+  const profileUpdate = { gender, updated_at: new Date().toISOString() };
+  await Promise.all([
+    supabaseServerFetch(`encuentro_psicologico_profiles?user_id=eq.${encodeURIComponent(user.id)}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(profileUpdate) }),
+    supabaseServerFetch(`encuentro_psicologico_registrations?user_id=eq.${encodeURIComponent(user.id)}&email=eq.${encodeURIComponent(String(data.email).trim().toLowerCase())}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ gender }) }),
+  ]);
   return Response.json({ ok: true, alreadyRegistered: result.status === "already_registered", waitlisted: result.status === "waitlist" || result.registration_status === "waitlist", available: result.available });
 }

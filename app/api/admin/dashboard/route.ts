@@ -2,14 +2,14 @@ import { isEventAdmin } from "../../../../lib/admin";
 import { EVENT_CAPACITY, eventDaysRemaining } from "../../../../lib/event";
 import { supabaseServerFetch } from "../../../../lib/supabase-server";
 
-type Registration = { id: number; user_id?: string | null; name: string; email?: string | null; phone?: string | null; modality: string; status: string; created_at: string; attendee_type?: string | null; country?: string | null; department?: string | null; professional_network_opt_in?: boolean };
+type Registration = { id: number; user_id?: string | null; name: string; email?: string | null; phone?: string | null; modality: string; status: string; created_at: string; attendee_type?: string | null; profession?: string | null; country?: string | null; department?: string | null; gender?: string | null; event_roles?: string[] | null; professional_network_opt_in?: boolean };
 type SupportIssue = { id: number; phone: string; problem: string; status: string; created_at: string };
 type ProfessionalDirectory = { user_id: string; share_enabled: boolean; profession: string | null; specialty: string | null; address: string | null; email: string | null; whatsapp: string | null; website: string | null; instagram: string | null; updated_at: string };
 
 export async function GET() {
   if (!await isEventAdmin()) return Response.json({ error: "No autorizado" }, { status: 401 });
   const [response, issuesResponse, directoryResponse] = await Promise.all([
-    supabaseServerFetch("encuentro_psicologico_registrations?select=id,user_id,name,email,phone,modality,status,attendee_type,country,department,professional_network_opt_in,created_at&order=created_at.desc"),
+    supabaseServerFetch("encuentro_psicologico_registrations?select=id,user_id,name,email,phone,modality,status,attendee_type,profession,country,department,gender,event_roles,professional_network_opt_in,created_at&order=created_at.desc"),
     supabaseServerFetch("encuentro_psicologico_support_issues?select=id,phone,problem,status,created_at&order=created_at.desc"),
     supabaseServerFetch("encuentro_psicologico_professional_directory?select=user_id,share_enabled,profession,specialty,address,email,whatsapp,website,instagram,updated_at&order=updated_at.desc"),
   ]);
@@ -25,6 +25,8 @@ export async function GET() {
   const networkOptIns = registrations.filter(item => item.professional_network_opt_in);
   const sharedDirectory = directory.filter(item => item.share_enabled);
   const registrationsByUser = new Map(registrations.map(item => [String(item.user_id ?? ""), item]));
+  const breakdown = (values: Array<string | null | undefined>) => Object.entries(values.reduce<Record<string, number>>((all, value) => { const label = value?.trim() || "Sin dato"; all[label] = (all[label] ?? 0) + 1; return all; }, {})).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "es"));
+  const roles = confirmed.flatMap(item => item.event_roles ?? []);
   return Response.json({
     daysRemaining: eventDaysRemaining(),
     metrics: {
@@ -39,6 +41,16 @@ export async function GET() {
       networkOptIns: networkOptIns.length,
       sharedDirectory: sharedDirectory.length,
       guatemala: confirmed.filter(item => (item.country ?? "Guatemala") === "Guatemala").length,
+      speakers: roles.filter(role => role === "speaker").length,
+      organizers: roles.filter(role => role === "organizer").length,
+    },
+    statistics: {
+      departments: breakdown(confirmed.map(item => item.department)),
+      genders: breakdown(confirmed.map(item => item.gender)),
+      professions: breakdown(confirmed.filter(item => item.attendee_type === "professional").map(item => item.profession)),
+      countries: breakdown(confirmed.map(item => item.country)),
+      modalities: breakdown(confirmed.map(item => item.modality === "presencial" ? "Presencial" : item.modality === "virtual" ? "Virtual" : item.modality)),
+      profiles: breakdown(confirmed.map(item => item.attendee_type === "professional" ? "Profesional" : item.attendee_type === "student" ? "Estudiante" : "General")),
     },
     recent: registrations.slice(0, 8),
     problems: { open: openIssues.length, recent: issues.slice(0, 20) },
