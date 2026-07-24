@@ -35,6 +35,7 @@ export default function Home() {
   const [selectedSpeaker, setSelectedSpeaker] = useState<EventSpeaker | null>(null);
   const [selectedProgramItem, setSelectedProgramItem] = useState<EventProgramItem | null>(null);
   const [siteContent, setSiteContent] = useState({ title: "Cuando el Duelo se Detiene", date: "15 DE AGOSTO 2026", place: "CHIMALTENANGO", description: "Jornada Clínica sobre Duelo Prolongado. Seis miradas para comprender su diagnóstico, impacto corporal y abordaje terapéutico, familiar, psiquiátrico y comunitario.", live: false });
+  const [sponsors, setSponsors] = useState<Array<{ id:number; name:string; description?:string|null; website?:string|null; logo_url?:string|null }>>([]);
   const [daysRemaining, setDaysRemaining] = useState(0);
   const visibleAgenda = program;
 
@@ -43,6 +44,7 @@ export default function Home() {
     fetch("/api/speakers").then(response => response.json()).then(data => setSpeakers(data.speakers ?? [])).catch(() => undefined);
     fetch("/api/program").then(response => response.json()).then(data => setProgram((data.program?.length ? data.program : DEFAULT_PROGRAM) as EventProgramItem[])).catch(() => undefined);
     fetch("/api/content").then(response => response.json()).then(data => setSiteContent(current => ({ ...current, ...data, live: Boolean(data.live) }))).catch(() => undefined);
+    fetch("/api/sponsors").then(response => response.json()).then(data => setSponsors(data.sponsors ?? [])).catch(() => undefined);
     const updateDays = () => setDaysRemaining(Math.max(0, Math.ceil((new Date(EVENT_START).getTime() - Date.now()) / 86400000)));
     const timeout = window.setTimeout(updateDays, 0);
     const interval = window.setInterval(updateDays, 60 * 60 * 1000);
@@ -227,14 +229,14 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="transmision" className="live-banner section-pad"><div className="live-visual"><div className="play-lock">▶</div><span>TRANSMISIÓN PRIVADA</span></div><div><p className="section-kicker light">ENCUENTRO EN VIVO</p><h2>La sala se abrirá<br /><em>cuando sea el momento.</em></h2><p>El acceso aparecerá aquí cuando el equipo organizador active la transmisión.</p><button disabled={!siteContent.live} className="secondary light-btn">{siteContent.live ? "Entrar a la transmisión →" : "Aún no disponible · 🔒"}</button></div></section>
+      <section id="transmision" className="live-banner section-pad"><div className="live-visual"><div className="play-lock">▶</div><span>TRANSMISIÓN PRIVADA</span></div><div><p className="section-kicker light">ENCUENTRO EN VIVO</p><h2>{siteContent.live ? <>La sala está<br /><em>lista para ti.</em></> : <>La sala se abrirá<br /><em>cuando sea el momento.</em></>}</h2><p>{siteContent.live ? "Ingresa desde tu cuenta para ver la transmisión, participar en las preguntas y acceder a los recursos del encuentro." : "El acceso aparecerá aquí cuando el equipo organizador active la transmisión."}</p>{siteContent.live ? <Link className="secondary light-btn" href="/transmision">Unirme al encuentro →</Link> : <button disabled className="secondary light-btn">Aún no disponible · 🔒</button>}</div></section>
 
       <section id="recursos" className="resources section-pad">
         <div className="section-head"><div><p className="section-kicker">BIBLIOTECA DEL ENCUENTRO</p><h2>Para seguir<br /><em>profundizando.</em></h2></div><p className="side-copy dark-copy">Materiales seleccionados por el comité académico. Algunos recursos se habilitarán durante el evento.</p></div>
         <div className="public-empty"><span>BIBLIOTECA EN PREPARACIÓN</span><h3>Aún no hay recursos publicados.</h3><p>Los materiales aparecerán aquí cuando el equipo académico los cargue.</p></div>
       </section>
 
-      <section className="partners section-pad"><p className="section-kicker">HACEN POSIBLE ESTE ENCUENTRO</p><h2>Aliados por la salud mental.</h2><div className="public-empty"><span>CONVOCATORIA ABIERTA</span><h3>Patrocinadores por anunciar.</h3><p>Las organizaciones confirmadas aparecerán aquí.</p></div><a href="mailto:lic.juanreyesr@gmail.com">Quiero ser patrocinador <span>→</span></a></section>
+      <section className="partners section-pad"><p className="section-kicker">HACEN POSIBLE ESTE ENCUENTRO</p><h2>Aliados por la salud mental.</h2>{sponsors.length ? <div className="sponsor-public-grid">{sponsors.map(sponsor => <article key={sponsor.id}>{sponsor.logo_url ? <img src={sponsor.logo_url} alt={`Logo de ${sponsor.name}`} /> : <div className="sponsor-monogram">{sponsor.name.slice(0,1)}</div>}<div><b>{sponsor.name}</b>{sponsor.description && <p>{sponsor.description}</p>}{sponsor.website && <a href={sponsor.website.startsWith("http") ? sponsor.website : `https://${sponsor.website}`} target="_blank" rel="noreferrer">Conocer aliado ↗</a>}</div></article>)}</div> : <div className="public-empty"><span>CONVOCATORIA ABIERTA</span><h3>Patrocinadores por anunciar.</h3><p>Las organizaciones confirmadas aparecerán aquí.</p></div>}<a href="mailto:lic.juanreyesr@gmail.com">Quiero ser patrocinador <span>→</span></a></section>
 
       <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => openRegistration("presencial")}>Inscripción presencial</button><button onClick={() => openRegistration("virtual")}>Inscripción virtual</button><Link href="/preguntas">Preguntas a conferencistas</Link><a href="mailto:lic.juanreyesr@gmail.com">Patrocinios</a><Link href="/admin">Administración</Link></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
 

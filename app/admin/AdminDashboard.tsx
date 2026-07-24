@@ -7,6 +7,7 @@ import { programTimeLabel } from "../../lib/event";
 import CertificateManager from "./CertificateManager";
 import QuestionControl from "./QuestionControl";
 import AttendanceControl from "./AttendanceControl";
+import SponsorManager from "./SponsorManager";
 
 type DashboardData = {
   daysRemaining: number;
@@ -20,8 +21,8 @@ type DashboardData = {
   statistics: { departments: Array<{ label: string; value: number }>; genders: Array<{ label: string; value: number }>; professions: Array<{ label: string; value: number }>; countries: Array<{ label: string; value: number }>; modalities: Array<{ label: string; value: number }>; profiles: Array<{ label: string; value: number }> };
 };
 
-type SiteContent = { title: string; date: string; place: string; description: string; live: boolean };
-type Section = "Resumen" | "Contenido" | "Inscritos" | "Programa" | "Ponentes" | "Preguntas" | "Certificados" | "Red profesional" | "Biblioteca" | "Problemas" | "Transmisión";
+type SiteContent = { title: string; date: string; place: string; description: string; live: boolean; liveTitle: string; liveUrl: string };
+type Section = "Resumen" | "Contenido" | "Inscritos" | "Programa" | "Ponentes" | "Preguntas" | "Certificados" | "Patrocinadores" | "Red profesional" | "Biblioteca" | "Problemas" | "Transmisión";
 type SpeakerDraft = Omit<EventSpeaker, "id">;
 type ProgramDraft = Omit<EventProgramItem, "id">;
 type Registration = { id: number; user_id: string | null; modality: string; name: string; email: string; phone: string; attendee_type: string; profession: string | null; license: string | null; institution: string | null; country: string; department: string | null; gender: string | null; status: string; professional_network_opt_in: boolean; event_roles: string[]; speaker_program_item_id: number | null; created_at: string };
@@ -33,8 +34,8 @@ const emptyDashboard: DashboardData = { daysRemaining: 0, metrics: { total: 0, p
 const emptySpeaker: SpeakerDraft = { name: "", professional_title: "", talk_title: "", talk_time: "", program_item_id: null, bio: "", photo_url: null, video_url: null, contact_email: "", contact_phone: "", contact_website: "", display_order: 0, is_published: false };
 const emptyProgramItem: ProgramDraft = { start_time: "", end_time: "", type: "", title: "", description: "", details: "", display_order: 0, is_published: true };
 const emptyRegistration: RegistrationDraft = { modality: "presencial", name: "", email: "", phone: "", attendee_type: "general", profession: "", license: "", institution: "", country: "Guatemala", department: "", gender: "", status: "confirmed", professional_network_opt_in: false, event_roles: [], speaker_program_item_id: null };
-const sections: Section[] = ["Resumen", "Contenido", "Inscritos", "Programa", "Ponentes", "Preguntas", "Certificados", "Red profesional", "Biblioteca", "Problemas", "Transmisión"];
-const navIcons = ["◇", "✎", "▤", "☷", "◉", "?", "▱", "♢", "▧", "!", "▶"];
+const sections: Section[] = ["Resumen", "Contenido", "Inscritos", "Programa", "Ponentes", "Preguntas", "Certificados", "Patrocinadores", "Red profesional", "Biblioteca", "Problemas", "Transmisión"];
+const navIcons = ["◇", "✎", "▤", "☷", "◉", "?", "▱", "◆", "♢", "▧", "!", "▶"];
 
 function displayProgramOption(item: EventProgramItem) {
   return `${programTimeLabel(item)} · ${item.type} · ${item.title}`;
@@ -53,7 +54,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
   const [speakerDraft, setSpeakerDraft] = useState<SpeakerDraft>(emptySpeaker);
   const [programDraft, setProgramDraft] = useState<ProgramDraft>(emptyProgramItem);
   const [registrationDraft, setRegistrationDraft] = useState<RegistrationDraft>(emptyRegistration);
-  const [content, setContent] = useState<SiteContent>({ title: "Cuando el Duelo se Detiene", date: "15 de agosto de 2026", place: "Chimaltenango", description: "Jornada Clínica sobre Duelo Prolongado.", live: false });
+  const [content, setContent] = useState<SiteContent>({ title: "Cuando el Duelo se Detiene", date: "15 de agosto de 2026", place: "Chimaltenango", description: "Jornada Clínica sobre Duelo Prolongado.", live: false, liveTitle: "Encuentro en vivo", liveUrl: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<"photo" | "video" | null>(null);
@@ -331,6 +332,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
 
       {active === "Preguntas" && <><QuestionControl /><AttendanceControl /></>}
       {active === "Certificados" && <CertificateManager />}
+      {active === "Patrocinadores" && <SponsorManager />}
 
       {active === "Red profesional" && <div className="admin-content">
         <div className="stat-grid"><article><span>Quieren pertenecer</span><b>{dashboard.metrics.networkOptIns ?? 0}</b><small>Marcados en inscripción o cuenta</small></article><article><span>Comparten datos</span><b>{dashboard.metrics.sharedDirectory ?? 0}</b><small>Directorio profesional</small></article><article><span>Profesionales</span><b>{dashboard.metrics.professionals ?? 0}</b><small>Perfil profesional inscrito</small></article><article><span>Estudiantes</span><b>{dashboard.metrics.students ?? 0}</b><small>Perfil estudiante inscrito</small></article></div>
@@ -340,7 +342,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
 
       {active === "Problemas" && <div className="admin-content"><article className="panel support-panel"><div className="panel-title"><h3>Problemas de acceso</h3><span className={dashboard.problems.open > 0 ? "problem-count has-problems" : "problem-count"}>{dashboard.problems.open} abiertos</span></div>{dashboard.problems.recent.length === 0 ? <div className="admin-empty"><b>No hay problemas reportados.</b><p>Cuando un participante indique que no puede iniciar sesión, aparecerá aquí.</p></div> : dashboard.problems.recent.map(problem => <div className={`support-issue ${problem.status === "open" ? "open" : ""}`} key={problem.id}><div><b>{problem.phone}</b><small>{new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(problem.created_at))}</small></div><p>{problem.problem}</p><span>{problem.status === "open" ? "Pendiente" : "Resuelto"}</span></div>)}</article></div>}
 
-      {active === "Transmisión" && <div className="admin-content"><div className="panel transmission-editor"><p className="admin-kicker">CONTROL DE ACCESO</p><h2>Transmisión en vivo</h2><p>Actívala únicamente cuando la sala esté lista. El sitio público mostrará el acceso a los participantes.</p><label className="live-toggle large"><div><b>Mostrar transmisión</b><small>{content.live ? "Visible para participantes" : "Aún no disponible"}</small></div><input type="checkbox" checked={content.live} onChange={event => setContent({ ...content, live: event.target.checked })} /><i /></label></div></div>}
+      {active === "Transmisión" && <div className="admin-content"><div className="panel transmission-editor"><p className="admin-kicker">CONTROL DE ACCESO</p><h2>Transmisión en vivo</h2><p>Pega un enlace de YouTube. Al activarla, solo participantes con cuenta podrán verla dentro de esta plataforma.</p><div className="speaker-form-grid"><label className="wide">Nombre de la transmisión<input value={content.liveTitle} placeholder="Ej. Jornada Clínica en vivo" onChange={event => setContent({ ...content, liveTitle: event.target.value })} /></label><label className="wide">Enlace de YouTube<input type="url" value={content.liveUrl} placeholder="https://www.youtube.com/watch?v=..." onChange={event => setContent({ ...content, liveUrl: event.target.value })} /><small>Admite enlaces youtube.com, youtu.be o youtube.com/live.</small></label></div><label className="live-toggle large"><div><b>Mostrar transmisión</b><small>{content.live ? "Visible para participantes registrados" : "Aún no disponible"}</small></div><input type="checkbox" checked={content.live} onChange={event => setContent({ ...content, live: event.target.checked })} /><i /></label></div></div>}
       {active === "Biblioteca" && <div className="admin-content">
         <div className="stat-grid community-admin-metrics"><article><span>Pendientes de revisión</span><b>{community.metrics.pending}</b><small>Requieren una decisión</small></article><article><span>Publicados</span><b>{community.metrics.approved}</b><small>Visibles para participantes</small></article><article><span>No aprobados</span><b>{community.metrics.rejected}</b><small>Conservados para seguimiento</small></article><article><span>Total gestionado</span><b>{community.resources.length}</b><small>Sin contar retirados</small></article></div>
         <article className="panel"><div className="panel-title"><h3>Recursos aportados por la comunidad</h3><span>{community.resources.length}</span></div>{community.resources.length === 0 ? <div className="community-admin-empty"><b>Aún no hay recursos enviados.</b><p>Los aportes de participantes aparecerán aquí para revisión.</p></div> : <div className="community-admin-list">{community.resources.map(resource => <article className="community-admin-item" key={resource.id}><div><header><b>{resource.title}</b><span className={`community-status ${resource.status}`}>{resource.status === "pending" ? "Pendiente" : resource.status === "approved" ? "Publicado" : "No aprobado"}</span></header><p>{resource.description || "Sin descripción."}</p><small>{resource.category_name} · aportado por {resource.contributor_name} · {resource.original_filename} · {Math.max(1, Math.round(resource.size_bytes / 1024))} KB</small>{resource.source_author && <small>Autor o fuente: {resource.source_author}</small>}<small>Declaración de responsabilidad aceptada por el participante.</small>{resource.moderation_reason && <small>Nota: {resource.moderation_reason}</small>}</div><div className="community-admin-actions"><a href={`/api/community-resources/${resource.id}/download`} target="_blank" rel="noreferrer">Revisar archivo</a>{resource.status !== "approved" && <button className="approve" type="button" disabled={saving} onClick={() => moderateCommunityResource(resource.id, "approved")}>Aprobar</button>}{resource.status !== "rejected" && <button className="reject" type="button" disabled={saving} onClick={() => moderateCommunityResource(resource.id, "rejected")}>No aprobar</button>}<button className="remove" type="button" disabled={saving} onClick={() => removeCommunityResource(resource.id)}>Retirar</button></div></article>)}</div>}</article>

@@ -1,21 +1,20 @@
 import { requireUser } from "../../lib/auth";
-import { EVENT_CAPACITY } from "../../lib/event";
 import { supabaseServerFetch } from "../../lib/supabase-server";
 import Link from "next/link";
 import AccountNameEditor from "./AccountNameEditor";
 import ProfessionalNetworkEditor, { type ProfessionalDirectory } from "./ProfessionalNetworkEditor";
 import CommunityLibrary from "./CommunityLibrary";
 import AttendanceVerifier from "./AttendanceVerifier";
+import ModalitySwitcher from "./ModalitySwitcher";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
   const user = await requireUser();
-  const [regResponse, resourceResponse, certificateResponse, capacityResponse, profileResponse, directoryResponse, rewardResponse, pendingResourceResponse] = await Promise.all([
+  const [regResponse, resourceResponse, certificateResponse, profileResponse, directoryResponse, rewardResponse, pendingResourceResponse] = await Promise.all([
     supabaseServerFetch(`encuentro_psicologico_registrations?select=modality,status,name,event_roles,speaker_program_item_id&user_id=eq.${user.id}`),
     supabaseServerFetch("encuentro_psicologico_resources?select=id,title,description,file_url&is_published=eq.true&order=created_at.desc"),
     supabaseServerFetch(`encuentro_psicologico_certificates?select=certificate_number,attendance_confirmed,issued_at&user_id=eq.${user.id}&limit=1`),
-    supabaseServerFetch("encuentro_psicologico_registrations?select=id&modality=eq.presencial&status=eq.confirmed", { headers: { Prefer: "count=exact", Range: "0-0" } }),
     supabaseServerFetch(`encuentro_psicologico_profiles?select=professional_network_opt_in&user_id=eq.${user.id}&limit=1`),
     supabaseServerFetch(`encuentro_psicologico_professional_directory?select=share_enabled,profession,specialty,address,email,whatsapp,website,instagram&user_id=eq.${user.id}&limit=1`),
     supabaseServerFetch(`encuentro_psicologico_community_reward_events?select=id&owner_user_id=eq.${user.id}`, { headers: { Prefer: "count=exact", Range: "0-0" } }),
@@ -26,10 +25,9 @@ export default async function AccountPage() {
   const [certificate] = certificateResponse.ok ? await certificateResponse.json() as Array<{ certificate_number?:string; attendance_confirmed:boolean }> : [];
   const [profile] = profileResponse.ok ? await profileResponse.json() as Array<{ professional_network_opt_in: boolean }> : [];
   const [directory] = directoryResponse.ok ? await directoryResponse.json() as ProfessionalDirectory[] : [];
-  const presencialCount = Number(capacityResponse.headers.get("content-range")?.split("/")[1] ?? 0);
   const communityStars = rewardResponse.ok ? Number(rewardResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
   const pendingCommunityStars = pendingResourceResponse.ok ? Number(pendingResourceResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
-  const canSwitchToVirtual = presencialCount >= EVENT_CAPACITY && registrations.some(item => item.modality === "presencial" && item.status === "confirmed");
+  const activeRegistration = registrations[0];
 
   return <main className="account-page">
     <header>
@@ -41,7 +39,7 @@ export default async function AccountPage() {
       <div className="account-community-heading"><AccountNameEditor initialName={registrations[0]?.name ?? user.email} /><div className="account-community-score" title="Tus aportes a la comunidad"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m12 2.8 2.8 5.68 6.27.91-4.54 4.43 1.07 6.25L12 17.12l-5.6 2.95 1.07-6.25-4.54-4.43 6.27-.91L12 2.8Z" /></svg><div><b>{communityStars}</b><span>Tus aportes a la comunidad</span>{pendingCommunityStars > 0 && <small>+{pendingCommunityStars} pendiente{pendingCommunityStars === 1 ? "" : "s"} de aprobación</small>}</div></div></div>
       <p>Aquí encontrarás tu inscripción, materiales, constancia de participación y tus opciones de red profesional.</p>
       <div className="account-grid">
-        <article><span>INSCRIPCIÓN</span><h2>{registrations.length ? "Confirmada" : "Pendiente"}</h2>{registrations.map(item=><p key={item.modality}>{item.modality === "presencial" ? "Presencial" : "Virtual"} · {item.status === "waitlist" ? "Lista de espera" : "Confirmada"}</p>)}{canSwitchToVirtual && <form action="/api/account/modality" method="post" className="switch-modality"><p>El cupo presencial está lleno. Si ya no puedes asistir presencialmente, puedes cambiarte a modalidad virtual y liberar tu espacio.</p><button className="secondary" type="submit">Cambiar mi asistencia a virtual</button></form>}</article>
+        <article><span>INSCRIPCIÓN</span><h2>{activeRegistration ? "Confirmada" : "Pendiente"}</h2>{activeRegistration && <><p>{activeRegistration.modality === "presencial" ? "Presencial" : "Virtual"} · {activeRegistration.status === "waitlist" ? "Lista de espera" : "Confirmada"}</p><ModalitySwitcher current={activeRegistration.modality as "presencial" | "virtual"} /></>}</article>
         <article><span>CONSTANCIA</span><h2>{certificate?.attendance_confirmed ? "Disponible" : "Se habilitará después del evento"}</h2><p>La asistencia debe ser confirmada por la organización.</p>{certificate?.attendance_confirmed && <a className="primary" href="/api/account/certificate">Descargar constancia</a>}</article>
       </div>
       <AttendanceVerifier isOrganizer={registrations.some(item => item.event_roles?.includes("organizer"))} />
