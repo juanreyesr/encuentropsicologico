@@ -10,6 +10,7 @@ mkdirSync(output, { recursive: true });
 const designs = [
   { slug: "facebook", width: 1200, height: 630, format: "horizontal" },
   { slug: "instagram", width: 1080, height: 1350, format: "vertical" },
+  { slug: "instagram-cuadrado", width: 1080, height: 1080, format: "instagram-square" },
   { slug: "tiktok", width: 1080, height: 1920, format: "story" },
   { slug: "whatsapp", width: 1200, height: 1200, format: "square" },
 ];
@@ -69,6 +70,38 @@ function horizontalArt(width, height) {
 </svg>`;
 }
 
+function instagramSquareArt(width, height) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  ${sharedDefs(width, height)}
+  ${base(width, height)}
+  <rect x="42" y="42" width="996" height="996" rx="24" fill="#080b2b" opacity=".3" stroke="#e1b867" stroke-opacity=".26"/>
+
+  <text x="68" y="82" fill="#e9c779" font-family="Arial,Helvetica,sans-serif" font-size="18" font-weight="800" letter-spacing="4">ENCUENTRO CLÍNICO DE PSICOLOGÍA</text>
+  <text x="68" y="150" fill="#fffaf1" font-family="Georgia,serif" font-size="61">CUANDO EL DUELO</text>
+  <text x="68" y="216" fill="url(#gold)" font-family="Georgia,serif" font-size="61" font-style="italic">SE DETIENE</text>
+  <text x="68" y="260" fill="#f0e4d7" font-family="Georgia,serif" font-size="24">Jornada Clínica sobre Duelo Prolongado</text>
+  <line x1="68" y1="288" x2="1012" y2="288" stroke="#d9a956" stroke-width="2"/>
+
+  <text x="68" y="329" fill="#efc776" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="800" letter-spacing="2">15 DE AGOSTO 2026</text>
+  <text x="68" y="366" fill="#fffaf1" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="700">8:30 A. M. – 12:00 M. · CHIMALTENANGO</text>
+  <text x="68" y="400" fill="#d9d5e4" font-family="Arial,Helvetica,sans-serif" font-size="19">Modalidad presencial y virtual</text>
+
+  <rect x="68" y="438" width="944" height="188" rx="14" fill="#171943" opacity=".82" stroke="#b79be8" stroke-opacity=".38"/>
+  <text x="94" y="476" fill="#e9c779" font-family="Arial,Helvetica,sans-serif" font-size="19" font-weight="800" letter-spacing="3">6 CONFERENCIAS CLÍNICAS</text>
+  <text x="94" y="518" fill="#fffaf1" font-family="Arial,Helvetica,sans-serif" font-size="18">Diagnóstico · Atención primaria · Abordaje familiar</text>
+  <text x="94" y="554" fill="#fffaf1" font-family="Arial,Helvetica,sans-serif" font-size="18">Síntomas físicos · Manejo psiquiátrico · Abordaje local</text>
+  <text x="94" y="594" fill="#c8c2d7" font-family="Arial,Helvetica,sans-serif" font-size="17">Una mirada clínica e integral al duelo prolongado.</text>
+
+  <text x="68" y="674" fill="#e9c779" font-family="Arial,Helvetica,sans-serif" font-size="19" font-weight="800" letter-spacing="3">TU INSCRIPCIÓN GRATUITA INCLUYE</text>
+  <text x="68" y="712" fill="#fffaf1" font-family="Arial,Helvetica,sans-serif" font-size="19">Acceso · Diploma de participación · Materiales</text>
+
+  ${qrBlock({ x: 68, y: 784, size: 180, captionSize: 14 })}
+  <text x="305" y="832" fill="#fffaf1" font-family="Georgia,serif" font-size="28">Reserva tu lugar</text>
+  <text x="305" y="873" fill="#d7d2e1" font-family="Arial,Helvetica,sans-serif" font-size="18">Escanea el QR y elige tu modalidad.</text>
+  <text x="305" y="912" fill="#fffaf1" font-family="Arial,Helvetica,sans-serif" font-size="18" font-weight="700">encuentropsicologico.vercel.app</text>
+</svg>`;
+}
+
 function verticalArt(width, height, format) {
   const story = format === "story";
   const square = format === "square";
@@ -120,6 +153,8 @@ ${story ? `  <text x="${contentLeft + 28}" y="${programTop + 220}" fill="#c8c2d7
 for (const design of designs) {
   const svg = design.format === "horizontal"
     ? horizontalArt(design.width, design.height)
+    : design.format === "instagram-square"
+      ? instagramSquareArt(design.width, design.height)
     : verticalArt(design.width, design.height, design.format);
   writeFileSync(`${output}/${design.slug}.svg`, svg);
 }
