@@ -9,6 +9,22 @@ const guatemalaDepartments = [
   "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Guatemala", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa",
 ];
 
+type PublicCommunityResource = {
+  id: number;
+  title: string;
+  description: string | null;
+  category: string;
+};
+
+function eventCountdown(now = Date.now()) {
+  const remaining = Math.max(0, new Date(EVENT_START).getTime() - now);
+  return {
+    hours: Math.floor(remaining / 3_600_000),
+    minutes: Math.floor((remaining % 3_600_000) / 60_000),
+    seconds: Math.floor((remaining % 60_000) / 1_000),
+  };
+}
+
 export default function Home() {
   const [registration, setRegistration] = useState<"presencial" | "virtual" | null>(null);
   const [professional, setProfessional] = useState(false);
@@ -36,7 +52,10 @@ export default function Home() {
   const [selectedProgramItem, setSelectedProgramItem] = useState<EventProgramItem | null>(null);
   const [siteContent, setSiteContent] = useState({ title: "Cuando el Duelo se Detiene", date: "15 DE AGOSTO 2026", place: "CHIMALTENANGO", description: "Jornada Clínica sobre Duelo Prolongado. Seis miradas para comprender su diagnóstico, impacto corporal y abordaje terapéutico, familiar, psiquiátrico y comunitario.", live: false });
   const [sponsors, setSponsors] = useState<Array<{ id:number; name:string; description?:string|null; website?:string|null; logo_url?:string|null }>>([]);
+  const [publicResources, setPublicResources] = useState<PublicCommunityResource[]>([]);
+  const [selectedPublicResource, setSelectedPublicResource] = useState<PublicCommunityResource | null>(null);
   const [daysRemaining, setDaysRemaining] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState<ReturnType<typeof eventCountdown> | null>(null);
   const visibleAgenda = program;
 
   useEffect(() => {
@@ -45,23 +64,29 @@ export default function Home() {
     fetch("/api/program").then(response => response.json()).then(data => setProgram((data.program?.length ? data.program : DEFAULT_PROGRAM) as EventProgramItem[])).catch(() => undefined);
     fetch("/api/content").then(response => response.json()).then(data => setSiteContent(current => ({ ...current, ...data, live: Boolean(data.live) }))).catch(() => undefined);
     fetch("/api/sponsors").then(response => response.json()).then(data => setSponsors(data.sponsors ?? [])).catch(() => undefined);
-    const updateDays = () => setDaysRemaining(Math.max(0, Math.ceil((new Date(EVENT_START).getTime() - Date.now()) / 86400000)));
-    const timeout = window.setTimeout(updateDays, 0);
-    const interval = window.setInterval(updateDays, 60 * 60 * 1000);
+    fetch("/api/community-resources/public").then(response => response.json()).then(data => setPublicResources(data.resources ?? [])).catch(() => undefined);
+    const updateCountdown = () => {
+      const now = Date.now();
+      setDaysRemaining(Math.max(0, Math.ceil((new Date(EVENT_START).getTime() - now) / 86400000)));
+      setTimeRemaining(eventCountdown(now));
+    };
+    const timeout = window.setTimeout(updateCountdown, 0);
+    const interval = window.setInterval(updateCountdown, 1000);
     return () => { window.clearTimeout(timeout); window.clearInterval(interval); };
   }, []);
 
   useEffect(() => {
-    if (!selectedSpeaker && !selectedProgramItem) return;
+    if (!selectedSpeaker && !selectedProgramItem && !selectedPublicResource) return;
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setSelectedSpeaker(null);
         setSelectedProgramItem(null);
+        setSelectedPublicResource(null);
       }
     };
     document.addEventListener("keydown", close); document.body.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", close); document.body.style.overflow = ""; };
-  }, [selectedSpeaker, selectedProgramItem]);
+  }, [selectedSpeaker, selectedProgramItem, selectedPublicResource]);
 
   function openRegistration(modality: "presencial" | "virtual") {
     setSent(false);
@@ -181,7 +206,17 @@ export default function Home() {
           <div className="hero-meta"><span><b>01</b> jornada</span><span><b>06</b> ponentes</span><span><b>3.5</b> horas</span></div>
           <div className="countdown"><span>Faltan</span><b>{daysRemaining}</b><span>días para la jornada</span></div>
         </div>
-        <div className="hero-stage keynote-arch" role="img" aria-label="Ponente en escenario durante una conferencia clínica"><div className="arch-date"><b>15</b><span>AGOSTO 2026<strong>Modalidad híbrida · alcance nacional</strong></span></div></div>
+        <div className="hero-stage keynote-arch" role="img" aria-label="Ponente en escenario durante una conferencia clínica">
+          <div className="arch-date"><b>15</b><span>AGOSTO 2026<strong>Modalidad híbrida · alcance nacional</strong></span></div>
+          <div className="arch-countdown" role="timer" aria-label={timeRemaining ? `${timeRemaining.hours} horas, ${timeRemaining.minutes} minutos y ${timeRemaining.seconds} segundos para el evento` : "Calculando el tiempo restante para el evento"}>
+            <span className="arch-countdown-label">COMIENZA EN</span>
+            <div><b>{timeRemaining ? String(timeRemaining.hours).padStart(2, "0") : "––"}</b><small>HRS</small></div>
+            <i aria-hidden="true">:</i>
+            <div><b>{timeRemaining ? String(timeRemaining.minutes).padStart(2, "0") : "––"}</b><small>MIN</small></div>
+            <i aria-hidden="true">:</i>
+            <div><b>{timeRemaining ? String(timeRemaining.seconds).padStart(2, "0") : "––"}</b><small>SEG</small></div>
+          </div>
+        </div>
         <a className="scroll-hint" href="#encuentro">Descubrir <span>↓</span></a>
       </section>
 
@@ -233,16 +268,34 @@ export default function Home() {
 
       <section id="recursos" className="resources section-pad">
         <div className="section-head"><div><p className="section-kicker">BIBLIOTECA DEL ENCUENTRO</p><h2>Para seguir<br /><em>profundizando.</em></h2></div><p className="side-copy dark-copy">Materiales seleccionados por el comité académico. Algunos recursos se habilitarán durante el evento.</p></div>
-        <div className="public-empty"><span>BIBLIOTECA EN PREPARACIÓN</span><h3>Aún no hay recursos publicados.</h3><p>Los materiales aparecerán aquí cuando el equipo académico los cargue.</p></div>
+        {publicResources.length ? <div className="public-resource-catalog">
+          <div className="public-resource-intro"><span>RECURSOS DISPONIBLES</span><p>Explora los títulos disponibles. Inicia sesión para abrirlos o descargarlos desde tu biblioteca compartida.</p></div>
+          <div className="public-resource-grid">{publicResources.map(resource => <button key={resource.id} onClick={() => setSelectedPublicResource(resource)} aria-label={`Acceder a ${resource.title}`}>
+            <span>{resource.category}</span>
+            <h3>{resource.title}</h3>
+            <div><small>Acceso para participantes</small><b aria-hidden="true">↗</b></div>
+          </button>)}</div>
+        </div> : <div className="public-empty"><span>BIBLIOTECA EN PREPARACIÓN</span><h3>Aún no hay recursos publicados.</h3><p>Los materiales aparecerán aquí cuando el equipo académico los cargue.</p></div>}
       </section>
 
-      <section className="partners section-pad"><p className="section-kicker">HACEN POSIBLE ESTE ENCUENTRO</p><h2>Aliados por la salud mental.</h2>{sponsors.length ? <div className="sponsor-public-grid">{sponsors.map(sponsor => <article key={sponsor.id}>{sponsor.logo_url ? <img src={sponsor.logo_url} alt={`Logo de ${sponsor.name}`} /> : <div className="sponsor-monogram">{sponsor.name.slice(0,1)}</div>}<div><b>{sponsor.name}</b>{sponsor.description && <p>{sponsor.description}</p>}{sponsor.website && <a href={sponsor.website.startsWith("http") ? sponsor.website : `https://${sponsor.website}`} target="_blank" rel="noreferrer">Conocer aliado ↗</a>}</div></article>)}</div> : <div className="public-empty"><span>CONVOCATORIA ABIERTA</span><h3>Patrocinadores por anunciar.</h3><p>Las organizaciones confirmadas aparecerán aquí.</p></div>}<a href="mailto:lic.juanreyesr@gmail.com">Quiero ser patrocinador <span>→</span></a></section>
+      <section className="partners section-pad"><p className="section-kicker">HACEN POSIBLE ESTE ENCUENTRO</p><h2>Aliados por la salud mental.</h2>{sponsors.length ? <div className="sponsor-public-grid">{sponsors.map(sponsor => <article key={sponsor.id}>{sponsor.logo_url ? <img src={sponsor.logo_url} alt={`Logo de ${sponsor.name}`} /> : <div className="sponsor-monogram">{sponsor.name.slice(0,1)}</div>}<div className="sponsor-public-copy"><b>{sponsor.name}</b>{sponsor.description && <p>{sponsor.description}</p>}{sponsor.website && <a href={sponsor.website.startsWith("http") ? sponsor.website : `https://${sponsor.website}`} target="_blank" rel="noreferrer">Conocer aliado <span aria-hidden="true">↗</span></a>}</div></article>)}</div> : <div className="public-empty"><span>CONVOCATORIA ABIERTA</span><h3>Patrocinadores por anunciar.</h3><p>Las organizaciones confirmadas aparecerán aquí.</p></div>}<a href="mailto:lic.juanreyesr@gmail.com">Quiero ser patrocinador <span>→</span></a></section>
 
       <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => openRegistration("presencial")}>Inscripción presencial</button><button onClick={() => openRegistration("virtual")}>Inscripción virtual</button><Link href="/preguntas">Preguntas a conferencistas</Link><a href="mailto:lic.juanreyesr@gmail.com">Patrocinios</a><Link href="/admin">Administración</Link></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
 
       {selectedSpeaker && <div className="modal-backdrop speaker-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedSpeaker(null); }}><section className="speaker-modal" role="dialog" aria-modal="true" aria-labelledby="speaker-modal-name"><button className="modal-close" aria-label="Cerrar perfil" onClick={() => setSelectedSpeaker(null)}>×</button><div className="speaker-modal-media">{selectedSpeaker.photo_url ? <img src={selectedSpeaker.photo_url} alt={`Fotografía de ${selectedSpeaker.name}`} /> : <div className="speaker-placeholder">{selectedSpeaker.name.slice(0, 1)}</div>}</div><div className="speaker-modal-copy"><p className="section-kicker">{speakerProgramItem(selectedSpeaker) ? programTimeLabel(speakerProgramItem(selectedSpeaker)!) : selectedSpeaker.talk_time || "PONENTE"}</p><h2 id="speaker-modal-name">{selectedSpeaker.name}</h2><strong>{selectedSpeaker.professional_title}</strong>{(selectedSpeaker.talk_title || speakerProgramItem(selectedSpeaker)?.title) && <h3>{selectedSpeaker.talk_title || speakerProgramItem(selectedSpeaker)?.title}</h3>}<p>{selectedSpeaker.bio || "La semblanza profesional estará disponible próximamente."}</p>{(selectedSpeaker.contact_email || selectedSpeaker.contact_phone || selectedSpeaker.contact_website) && <div className="speaker-contact"><b>Contacto</b>{selectedSpeaker.contact_email && <a href={`mailto:${selectedSpeaker.contact_email}`}>{selectedSpeaker.contact_email}</a>}{selectedSpeaker.contact_phone && <a href={`tel:${selectedSpeaker.contact_phone}`}>{selectedSpeaker.contact_phone}</a>}{selectedSpeaker.contact_website && <a href={selectedSpeaker.contact_website.startsWith("http") ? selectedSpeaker.contact_website : `https://${selectedSpeaker.contact_website}`} target="_blank" rel="noreferrer">Sitio web ↗</a>}</div>}{selectedSpeaker.video_url && <video src={selectedSpeaker.video_url} controls preload="metadata" />}</div></section></div>}
 
       {selectedProgramItem && <div className="modal-backdrop speaker-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedProgramItem(null); }}><section className="program-modal" role="dialog" aria-modal="true" aria-labelledby="program-modal-title"><button className="modal-close" aria-label="Cerrar detalle" onClick={() => setSelectedProgramItem(null)}>×</button><p className="section-kicker">{selectedProgramItem.type} · {programTimeLabel(selectedProgramItem)}</p><h2 id="program-modal-title">{selectedProgramItem.title}</h2><strong>{selectedProgramItem.description}</strong><p>{selectedProgramItem.details || "Los detalles de este espacio se actualizarán desde el administrador."}</p></section></div>}
+
+      {selectedPublicResource && <div className="modal-backdrop public-resource-access-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedPublicResource(null); }}>
+        <section className="public-resource-access" role="dialog" aria-modal="true" aria-labelledby="public-resource-access-title">
+          <button className="modal-close" aria-label="Cerrar acceso al recurso" onClick={() => setSelectedPublicResource(null)}>×</button>
+          <span className="public-resource-lock" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2m-11 0h12v10H6V10Zm3 0h6V8a3 3 0 0 0-6 0v2Z" fill="currentColor" /></svg></span>
+          <p className="section-kicker">{selectedPublicResource.category}</p>
+          <h2 id="public-resource-access-title">{selectedPublicResource.title}</h2>
+          <p>Debes iniciar sesión para acceder a este recurso y a la biblioteca compartida de la comunidad.</p>
+          <div className="public-resource-access-actions"><Link className="primary" href="/acceso?next=/mi-cuenta">Iniciar sesión <span>→</span></Link><button className="secondary" onClick={() => { setSelectedPublicResource(null); openRegistration("virtual"); }}>Registrarme gratis</button></div>
+        </section>
+      </div>}
 
       {registration && <div className="modal-backdrop" role="presentation" onMouseDown={() => setRegistration(null)}>
         <div className="registration-modal" role="dialog" aria-modal="true" aria-labelledby="reg-title" onMouseDown={event => event.stopPropagation()}>
