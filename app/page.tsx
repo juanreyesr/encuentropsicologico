@@ -223,11 +223,6 @@ export default function Home() {
       <section id="encuentro" className="manifesto section-pad">
         <div><p className="section-kicker">POR QUÉ EL DUELO PROLONGADO</p><h2>Cuando el tiempo pasa,<br /><em>pero el dolor no cambia.</em></h2></div>
         <div className="manifesto-copy"><p>Una categoría diagnóstica reconocida por DSM-5-TR y CIE-11, todavía poco abordada en espacios formales e interdisciplinarios de Guatemala.</p><a href="#agenda">Explorar la jornada <span>→</span></a></div>
-        <div className="value-grid">
-          <article><span>01</span><div className="line-icon">◌</div><h3>Clínicamente relevante</h3><p>El duelo prolongado no es solo una etapa emocional: requiere detección y abordaje especializado.</p></article>
-          <article><span>02</span><div className="line-icon">✦</div><h3>Necesario en Guatemala</h3><p>Un espacio formal, interdisciplinario y con respaldo institucional dedicado al tema.</p></article>
-          <article><span>03</span><div className="line-icon">∞</div><h3>Alcance interinstitucional</h3><p>Universidades, Colegio de Psicólogos y otras ramas de la salud reunidas en una sola agenda.</p></article>
-        </div>
       </section>
 
       <section id="agenda" className="agenda-section section-pad">
@@ -279,6 +274,14 @@ export default function Home() {
       </section>
 
       <section className="partners section-pad"><p className="section-kicker">HACEN POSIBLE ESTE ENCUENTRO</p><h2>Aliados por la salud mental.</h2>{sponsors.length ? <div className="sponsor-public-grid">{sponsors.map(sponsor => <article key={sponsor.id}>{sponsor.logo_url ? <img src={sponsor.logo_url} alt={`Logo de ${sponsor.name}`} /> : <div className="sponsor-monogram">{sponsor.name.slice(0,1)}</div>}<div className="sponsor-public-copy"><b>{sponsor.name}</b>{sponsor.description && <p>{sponsor.description}</p>}{sponsor.website && <a href={sponsor.website.startsWith("http") ? sponsor.website : `https://${sponsor.website}`} target="_blank" rel="noreferrer">Conocer aliado <span aria-hidden="true">↗</span></a>}</div></article>)}</div> : <div className="public-empty"><span>CONVOCATORIA ABIERTA</span><h3>Patrocinadores por anunciar.</h3><p>Las organizaciones confirmadas aparecerán aquí.</p></div>}<a href="mailto:lic.juanreyesr@gmail.com">Quiero ser patrocinador <span>→</span></a></section>
+
+      <section className="closing-values section-pad" aria-label="Razones para este encuentro">
+        <div className="value-grid">
+          <article><span>01</span><div className="line-icon">◌</div><h3>Clínicamente relevante</h3><p>El duelo prolongado no es solo una etapa emocional: requiere detección y abordaje especializado.</p></article>
+          <article><span>02</span><div className="line-icon">✦</div><h3>Necesario en Guatemala</h3><p>Un espacio formal, interdisciplinario y con respaldo institucional dedicado al tema.</p></article>
+          <article><span>03</span><div className="line-icon">∞</div><h3>Alcance interinstitucional</h3><p>Universidades, Colegio de Psicólogos y otras ramas de la salud reunidas en una sola agenda.</p></article>
+        </div>
+      </section>
 
       <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => openRegistration("presencial")}>Inscripción presencial</button><button onClick={() => openRegistration("virtual")}>Inscripción virtual</button><Link href="/preguntas">Preguntas a conferencistas</Link><a href="mailto:lic.juanreyesr@gmail.com">Patrocinios</a><Link href="/admin">Administración</Link></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
 
