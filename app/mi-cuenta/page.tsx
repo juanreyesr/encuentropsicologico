@@ -6,14 +6,14 @@ import ProfessionalNetworkEditor, { type ProfessionalDirectory } from "./Profess
 import CommunityLibrary from "./CommunityLibrary";
 import AttendanceVerifier from "./AttendanceVerifier";
 import ModalitySwitcher from "./ModalitySwitcher";
+import EventMaterials from "./EventMaterials";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
   const user = await requireUser();
-  const [regResponse, resourceResponse, certificateResponse, profileResponse, directoryResponse, rewardResponse, pendingResourceResponse] = await Promise.all([
+  const [regResponse, certificateResponse, profileResponse, directoryResponse, rewardResponse, pendingResourceResponse] = await Promise.all([
     supabaseServerFetch(`encuentro_psicologico_registrations?select=modality,status,name,event_roles,speaker_program_item_id&user_id=eq.${user.id}`),
-    supabaseServerFetch("encuentro_psicologico_resources?select=id,title,description,file_url&is_published=eq.true&order=created_at.desc"),
     supabaseServerFetch(`encuentro_psicologico_certificates?select=certificate_number,attendance_confirmed,issued_at&user_id=eq.${user.id}&limit=1`),
     supabaseServerFetch(`encuentro_psicologico_profiles?select=professional_network_opt_in&user_id=eq.${user.id}&limit=1`),
     supabaseServerFetch(`encuentro_psicologico_professional_directory?select=share_enabled,profession,specialty,address,email,whatsapp,website,instagram&user_id=eq.${user.id}&limit=1`),
@@ -21,7 +21,6 @@ export default async function AccountPage() {
     supabaseServerFetch(`encuentro_psicologico_community_resources?select=id&owner_user_id=eq.${user.id}&status=eq.pending`, { headers: { Prefer: "count=exact", Range: "0-0" } }),
   ]);
   const registrations = regResponse.ok ? await regResponse.json() as Array<{ modality:string; status:string; name:string; event_roles?: string[]; speaker_program_item_id?: number | null }> : [];
-  const resources = resourceResponse.ok ? await resourceResponse.json() as Array<{ id:number; title:string; description?:string; file_url?:string }> : [];
   const [certificate] = certificateResponse.ok ? await certificateResponse.json() as Array<{ certificate_number?:string; attendance_confirmed:boolean }> : [];
   const [profile] = profileResponse.ok ? await profileResponse.json() as Array<{ professional_network_opt_in: boolean }> : [];
   const [directory] = directoryResponse.ok ? await directoryResponse.json() as ProfessionalDirectory[] : [];
@@ -44,9 +43,9 @@ export default async function AccountPage() {
       </div>
       <AttendanceVerifier isOrganizer={registrations.some(item => item.event_roles?.includes("organizer"))} />
       {registrations.some(item => item.event_roles?.includes("speaker")) && <details className="account-resources speaker-account-link"><summary><span>ESPACIO DE PONENTE</span><h2>Preguntas de tu conferencia <b aria-hidden="true">+</b></h2></summary><div className="account-resources-body"><p>Cuando la organización active las preguntas en vivo, aquí tendrás acceso a tu bandeja para marcar las que responderás durante el panel.</p><Link className="primary" href="/preguntas">Abrir preguntas recibidas</Link></div></details>}
+      <EventMaterials />
       <CommunityLibrary />
       <ProfessionalNetworkEditor initialOptIn={Boolean(profile?.professional_network_opt_in)} initialDirectory={directory ?? null} />
-      <details className="account-resources" open><summary><span>RECURSOS DEL ENCUENTRO</span><h2>Materiales y recursos <b aria-hidden="true">+</b></h2></summary><div className="account-resources-body">{resources.length ? resources.map(resource=><article key={resource.id}><div><b>{resource.title}</b><p>{resource.description}</p></div>{resource.file_url && <a href={resource.file_url} target="_blank" rel="noreferrer">Descargar ↓</a>}</article>) : <p>Los materiales aparecerán aquí cuando el administrador los publique.</p>}</div></details>
     </section>
   </main>;
 }
