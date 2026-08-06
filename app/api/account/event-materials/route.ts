@@ -31,6 +31,8 @@ type Material = {
   updated_at: string;
 };
 
+const PRIVATE_RESPONSE = { "Cache-Control": "private, no-store", Vary: "Cookie" };
+
 async function accountContext() {
   const user = await currentUser({ refresh: false });
   if (!user) return null;
@@ -61,13 +63,13 @@ function publicMaterial(material: Material) {
 
 export async function GET() {
   const context = await accountContext();
-  if (!context) return Response.json({ error: "Inicia sesión como participante para acceder a los materiales." }, { status: 401 });
+  if (!context) return Response.json({ error: "Inicia sesión como participante para acceder a los materiales." }, { status: 401, headers: PRIVATE_RESPONSE });
 
   const [programResponse, materialsResponse] = await Promise.all([
     supabaseServerFetch("encuentro_psicologico_program?select=id,title,start_time,end_time,display_order&is_published=eq.true&order=display_order.asc"),
     supabaseServerFetch("encuentro_psicologico_speaker_materials?select=id,owner_user_id,program_item_id,title,description,storage_path,original_filename,mime_type,size_bytes,created_at,updated_at&order=created_at.asc"),
   ]);
-  if (!programResponse.ok || !materialsResponse.ok) return Response.json({ error: "No se pudieron cargar los materiales del encuentro." }, { status: 503 });
+  if (!programResponse.ok || !materialsResponse.ok) return Response.json({ error: "No se pudieron cargar los materiales del encuentro." }, { status: 503, headers: PRIVATE_RESPONSE });
 
   const program = await programResponse.json() as ProgramItem[];
   const materials = await materialsResponse.json() as Material[];
@@ -106,7 +108,7 @@ export async function GET() {
     } : null,
     myMaterials,
     talks,
-  });
+  }, { headers: PRIVATE_RESPONSE });
 }
 
 export async function POST(request: Request) {
