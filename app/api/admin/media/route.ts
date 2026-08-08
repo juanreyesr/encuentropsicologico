@@ -14,10 +14,21 @@ export async function POST(request: Request) {
   if (file.size > 50 * 1024 * 1024) return Response.json({ error: "El archivo supera el máximo de 50 MB." }, { status: 400 });
   const extension = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
   if ((purpose === "certificate" || purpose === "sponsor") && !file.type.startsWith("image/")) return Response.json({ error: "Para este uso solo se permiten imágenes." }, { status: 400 });
+  if ((purpose === "certificate" || purpose === "sponsor") && file.size > 10 * 1024 * 1024) return Response.json({ error: "La imagen supera el máximo de 10 MB." }, { status: 400 });
   const directory = purpose === "certificate" ? "certificates" : purpose === "sponsor" ? "sponsors" : "speakers";
   const path = `${directory}/${crypto.randomUUID()}.${extension}`;
-  const { projectUrl, secretKey } = supabaseServerConfiguration();
-  const response = await fetch(`${projectUrl}/storage/v1/object/encuentro-psicologico-media/${path}`, { method: "POST", headers: { apikey: secretKey, Authorization: `Bearer ${secretKey}`, "Content-Type": file.type, "x-upsert": "false" }, body: await file.arrayBuffer() });
-  if (!response.ok) return Response.json({ error: "No se pudo cargar el archivo." }, { status: 503 });
-  return Response.json({ url: `${projectUrl}/storage/v1/object/public/encuentro-psicologico-media/${path}` });
+  try {
+    const { projectUrl, secretKey } = supabaseServerConfiguration();
+    const response = await fetch(`${projectUrl}/storage/v1/object/encuentro-psicologico-media/${path}`, {
+      method: "POST",
+      headers: { apikey: secretKey, Authorization: `Bearer ${secretKey}`, "Content-Type": file.type, "x-upsert": "false" },
+      body: await file.arrayBuffer(),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) return Response.json({ error: "No se pudo cargar el archivo. Verifica que el archivo sea una imagen válida e inténtalo de nuevo." }, { status: 503 });
+    return Response.json({ url: `${projectUrl}/storage/v1/object/public/encuentro-psicologico-media/${path}` });
+  } catch (error) {
+    const timedOut = error instanceof DOMException && error.name === "TimeoutError";
+    return Response.json({ error: timedOut ? "La carga tardó demasiado. Intenta con una imagen más liviana." : "No se pudo conectar con el almacenamiento. Inténtalo de nuevo." }, { status: 503 });
+  }
 }

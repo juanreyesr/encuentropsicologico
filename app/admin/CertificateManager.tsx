@@ -5,6 +5,7 @@ import { DEFAULT_CERTIFICATE_SETTINGS, type CertificateSettings } from "../../li
 
 type Settings = Required<CertificateSettings>;
 type CertificateType = "professional" | "general";
+type BusyAction = "upload" | "save" | "generate" | null;
 
 function freshSettings(): Settings {
   return {
@@ -26,6 +27,26 @@ function mergeSettings(saved: Partial<Settings>): Settings {
   };
 }
 
+async function requestJson(url: string, init: RequestInit, timeout = 30_000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    const raw = await response.text();
+    let data: Record<string, unknown> = {};
+    try { data = raw ? JSON.parse(raw) as Record<string, unknown> : {}; } catch { data = { error: raw }; }
+    return { response, data };
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+function requestError(error: unknown, fallback: string) {
+  return error instanceof DOMException && error.name === "AbortError"
+    ? "La operación tardó demasiado. Intenta otra vez o usa una imagen más liviana."
+    : fallback;
+}
+
 export default function CertificateManager() {
   const [settings, setSettings] = useState<Settings>(freshSettings);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -35,7 +56,7 @@ export default function CertificateManager() {
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -64,56 +85,76 @@ export default function CertificateManager() {
   async function upload(event: ChangeEvent<HTMLInputElement>, type: "signature" | "logo", index = 0) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setSaving(true);
+    if (file.size > 10 * 1024 * 1024) {
+      setMessage("La imagen supera 10 MB. Elige una versión más liviana para que cargue correctamente.");
+      event.target.value = "";
+      return;
+    }
+    setBusyAction("upload");
     setMessage("");
     const form = new FormData();
     form.append("file", file);
     form.append("purpose", "certificate");
-    const response = await fetch("/api/admin/media", { method: "POST", body: form });
-    const result = await response.json();
-    setSaving(false);
-    if (!response.ok) {
-      setMessage(result.error ?? "No se pudo cargar la imagen.");
-      return;
-    }
-    if (type === "signature") {
-      setSettings(current => ({
-        ...current,
-        signatures: current.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, image_url: result.url } : item),
-      }));
-    } else {
-      setSettings(current => ({ ...current, sponsor_logos: [...current.sponsor_logos, result.url] }));
+    try {
+      const { response, data } = await requestJson("/api/admin/media", { method: "POST", body: form }, 35_000);
+      if (!response.ok || typeof data.url !== "string") {
+        setMessage(String(data.error ?? "No se pudo cargar la imagen."));
+        return;
+      }
+      if (type === "signature") {
+        setSettings(current => ({
+          ...current,
+          signatures: current.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, image_url: data.url as string } : item),
+        }));
+      } else {
+        setSettings(current => ({ ...current, sponsor_logos: [...current.sponsor_logos, data.url as string] }));
+      }
+      setMessage(type === "signature" ? "Firma cargada. Guarda el modelo para conservarla." : "Logo cargado. Guarda el modelo para conservarlo.");
+    } catch (error) {
+      setMessage(requestError(error, "No se pudo cargar la imagen. Comprueba tu conexión e inténtalo de nuevo."));
+    } finally {
+      setBusyAction(null);
+      event.target.value = "";
     }
   }
 
   async function save() {
-    setSaving(true);
+    setBusyAction("save");
     setMessage("");
-    const response = await fetch("/api/admin/certificates", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    });
-    const result = await response.json();
-    setSaving(false);
-    if (response.ok) {
-      if (result.settings) setSettings(mergeSettings(result.settings));
-      setMessage("Modelo de diploma guardado.");
-    } else {
-      setMessage(result.error ?? "No se pudo guardar el diploma.");
+    try {
+      const { response, data } = await requestJson("/api/admin/certificates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (response.ok) {
+        if (data.settings && typeof data.settings === "object") setSettings(mergeSettings(data.settings as Partial<Settings>));
+        setMessage("Modelo de diploma guardado.");
+      } else {
+        setMessage(String(data.error ?? "No se pudo guardar el diploma."));
+      }
+    } catch (error) {
+      setMessage(requestError(error, "No se pudo guardar el diploma. Comprueba tu conexión e inténtalo de nuevo."));
+    } finally {
+      setBusyAction(null);
     }
   }
 
   async function generate() {
     if (!window.confirm("Se emitirán diplomas para todos los participantes confirmados y quedarán disponibles en sus cuentas. ¿Continuar?")) return;
-    setSaving(true);
+    setBusyAction("generate");
     setMessage("");
-    const response = await fetch("/api/admin/certificates/generate", { method: "POST" });
-    const result = await response.json();
-    setSaving(false);
-    setMessage(response.ok
-      ? `${result.generated} diploma${result.generated === 1 ? "" : "s"} emitido${result.generated === 1 ? "" : "s"}.`
-      : result.error ?? "No se pudieron emitir los diplomas.");
+    try {
+      const { response, data } = await requestJson("/api/admin/certificates/generate", { method: "POST" }, 45_000);
+      const generated = Number(data.generated ?? 0);
+      setMessage(response.ok
+        ? `${generated} diploma${generated === 1 ? "" : "s"} emitido${generated === 1 ? "" : "s"}.`
+        : String(data.error ?? "No se pudieron emitir los diplomas."));
+    } catch (error) {
+      setMessage(requestError(error, "No se pudieron emitir los diplomas. Inténtalo de nuevo."));
+    } finally {
+      setBusyAction(null);
+    }
   }
 
   async function renderPreview(type: CertificateType = previewType) {
@@ -156,7 +197,7 @@ export default function CertificateManager() {
         <div className="certificate-manager-actions">
           <button className="secondary" onClick={() => setEditorOpen(true)}>Editar modelo y firmas</button>
           <button className="secondary certificate-preview-trigger" onClick={() => void showPreview()}>Previsualizar certificados</button>
-          <button className="admin-save" disabled={saving} onClick={generate}>{saving ? "Procesando…" : "Generar certificados para confirmados"}</button>
+          <button className="admin-save" disabled={busyAction !== null} onClick={generate}>{busyAction === "generate" ? "Procesando…" : "Generar certificados para confirmados"}</button>
         </div>
         {message && <p className="community-success" role="status">{message}</p>}
       </div>
@@ -168,7 +209,7 @@ export default function CertificateManager() {
             <p className="section-kicker">MODELO GENERAL</p>
             <h2 id="certificate-title">Editar diploma</h2>
             <p className="certificate-editor-help">Los cambios se pueden previsualizar antes de guardarlos. La vista de prueba no emite ningún certificado.</p>
-            <div className="speaker-form-grid">
+            <div className="certificate-details-grid">
               <label className="wide">Nombre del evento<input value={settings.event_name} onChange={event => setSettings({ ...settings, event_name: event.target.value })} /></label>
               <label>Fecha<input value={settings.event_date} onChange={event => setSettings({ ...settings, event_date: event.target.value })} /></label>
               <label>Lugar<input value={settings.event_place} onChange={event => setSettings({ ...settings, event_place: event.target.value })} /></label>
@@ -181,13 +222,17 @@ export default function CertificateManager() {
             <div className="certificate-signatures">
               <h3>Firmas</h3>
               {settings.signatures.map((signature, index) => (
-                <article key={index}>
-                  <div>
-                    {signature.image_url ? <img src={signature.image_url} alt={`Firma ${index + 1}`} /> : <span>Firma {index + 1}</span>}
-                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => upload(event, "signature", index)} />
+                <article className="certificate-signature-card" key={index}>
+                  <label className="certificate-file-control">
+                    <span className="certificate-file-preview">{signature.image_url ? <img src={signature.image_url} alt={`Vista previa de firma ${index + 1}`} /> : <b>Firma {index + 1}</b>}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "signature", index)} />
+                    <strong>{busyAction === "upload" ? "Cargando imagen…" : signature.image_url ? "Cambiar firma" : "Cargar firma"}</strong>
+                    <small>PNG, JPG o WebP · máximo 10 MB</small>
+                  </label>
+                  <div className="certificate-signature-fields">
+                    <label>Nombre<input value={signature.name} onChange={event => setSettings({ ...settings, signatures: settings.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} /></label>
+                    <label>Función<input value={signature.role} placeholder="Ej. Organizadora" onChange={event => setSettings({ ...settings, signatures: settings.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, role: event.target.value } : item) })} /></label>
                   </div>
-                  <label>Nombre<input value={signature.name} onChange={event => setSettings({ ...settings, signatures: settings.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} /></label>
-                  <label>Función<input value={signature.role} placeholder="Ej. Organizadora" onChange={event => setSettings({ ...settings, signatures: settings.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, role: event.target.value } : item) })} /></label>
                 </article>
               ))}
             </div>
@@ -199,17 +244,19 @@ export default function CertificateManager() {
                 {settings.sponsor_logos.map((url, index) => (
                   <figure key={`${url}-${index}`}>
                     <img src={url} alt="Logo de patrocinador" />
-                    <button type="button" aria-label="Quitar logo" onClick={() => setSettings({ ...settings, sponsor_logos: settings.sponsor_logos.filter((_, itemIndex) => itemIndex !== index) })}>×</button>
+                    <button type="button" aria-label="Quitar logo" disabled={busyAction !== null} onClick={() => setSettings({ ...settings, sponsor_logos: settings.sponsor_logos.filter((_, itemIndex) => itemIndex !== index) })}>×</button>
                   </figure>
                 ))}
-                <label className="media-upload"><input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => upload(event, "logo")} /><span>Agregar logo</span></label>
+                <label className="certificate-logo-upload"><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "logo")} /><strong>{busyAction === "upload" ? "Cargando imagen…" : "Agregar logo"}</strong><small>PNG, JPG o WebP · máximo 10 MB</small></label>
               </div>
             </div>
+
+            {message && <p className={message.includes("No se pudo") || message.includes("tardó") || message.includes("supera") ? "community-error" : "community-success"} role="status">{message}</p>}
 
             <div className="community-modal-actions certificate-editor-actions">
               <button className="secondary" onClick={() => setEditorOpen(false)}>Cerrar</button>
               <button className="secondary" disabled={previewLoading} onClick={() => void showPreview()}>{previewLoading ? "Preparando…" : "Previsualizar cambios"}</button>
-              <button className="primary" disabled={saving} onClick={save}>{saving ? "Guardando…" : "Guardar modelo"}</button>
+              <button className="primary" disabled={busyAction !== null} onClick={save}>{busyAction === "save" ? "Guardando…" : "Guardar modelo"}</button>
             </div>
           </section>
         </div>
