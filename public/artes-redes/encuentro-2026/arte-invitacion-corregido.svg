@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2752" height="1536" viewBox="0 0 2752 1536">
+  <defs>
+    <linearGradient id="footer" x1="0" x2="1">
+      <stop offset="0" stop-color="#b77a24"/>
+      <stop offset=".33" stop-color="#f4d66d"/>
+      <stop offset=".54" stop-color="#fff0a8"/>
+      <stop offset="1" stop-color="#c8923c"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#090a2e" stop-opacity=".96"/>
+      <stop offset="1" stop-color="#211537" stop-opacity=".92"/>
+    </linearGradient>
+  </defs>
+  <image href="./base-gemini.png" x="0" y="0" width="2752" height="1536"/>
+
+  <!-- Functional QR codes point to the verified registration page and venue map. -->
+  <rect x="1953" y="554" width="294" height="300" rx="24" fill="#fffdf7" stroke="#d8a653" stroke-width="8"/>
+  <image href="https://api.qrserver.com/v1/create-qr-code/?size=320x320&amp;margin=0&amp;data=https%3A%2F%2Fmaps.app.goo.gl%2FBTYVt9Fs7JeiQ1vw5" x="1971" y="572" width="258" height="258" preserveAspectRatio="xMidYMid meet"/>
+  <rect x="2328" y="554" width="294" height="300" rx="24" fill="#fffdf7" stroke="#d8a653" stroke-width="8"/>
+  <image href="https://api.qrserver.com/v1/create-qr-code/?size=320x320&amp;margin=0&amp;data=https%3A%2F%2Fencuentropsicologico.vercel.app" x="2346" y="572" width="258" height="258" preserveAspectRatio="xMidYMid meet"/>
+
+  <!-- Replaces the incorrect modality wording without touching the date, time or location. -->
+  <rect x="1950" y="435" width="650" height="86" rx="8" fill="#1e1536" fill-opacity=".86"/>
+  <text x="1975" y="487" fill="#e6bf70" font-family="Georgia, serif" font-size="42" font-weight="700">(PRESENCIAL O VIRTUAL)</text>
+
+  <!-- Replaces Gemini's incorrect lower-right text with the verified event information. -->
+  <rect x="1880" y="1000" width="810" height="262" rx="18" fill="url(#panel)" stroke="#d8a653" stroke-opacity=".62" stroke-width="2"/>
+  <text x="1930" y="1054" fill="#e7bf70" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="800" letter-spacing="3">INFORMACIÓN DE LA JORNADA</text>
+  <text x="1930" y="1104" fill="#fffaf1" font-family="Georgia, serif" font-size="32" font-weight="700">15 DE AGOSTO 2026</text>
+  <text x="1930" y="1148" fill="#fffaf1" font-family="Georgia, serif" font-size="29">8:30 A.M. – 12:00 P.M.</text>
+  <text x="1930" y="1192" fill="#fffaf1" font-family="Georgia, serif" font-size="29">CHIMALTENANGO</text>
+  <text x="1930" y="1233" fill="#e7bf70" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" letter-spacing="2">(PRESENCIAL O VIRTUAL)</text>
+
+  <!-- Official institutions only. -->
+  <rect x="0" y="1360" width="2752" height="176" fill="url(#footer)"/>
+  <line x1="0" y1="1360" x2="2752" y2="1360" stroke="#ffe5a1" stroke-opacity=".78" stroke-width="3"/>
+  <image href="./logo-encuentro.png" x="360" y="1383" width="150" height="126" preserveAspectRatio="xMidYMid slice"/>
+  <image href="./logo-cpg.png" x="630" y="1392" width="410" height="105" preserveAspectRatio="xMidYMid meet"/>
+  <image href="./logo-caeduc.png" x="1170" y="1382" width="335" height="118" preserveAspectRatio="xMidYMid meet"/>
+  <image href="./logo-upana.png" x="1640" y="1393" width="510" height="104" preserveAspectRatio="xMidYMid meet"/>
+</svg>

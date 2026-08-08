@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Arte de invitación — Encuentro Clínico de Psicología</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 2048px; height: 1152px; overflow: hidden; }
+    body {
+      color: #fffaf1;
+      background: #090a31 url('./fondo-violeta-generado.png') center / cover no-repeat;
+      font-family: Arial, Helvetica, sans-serif;
+      position: relative;
+    }
+    body::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4, 5, 29, .22), rgba(4, 5, 29, .04) 58%, rgba(4, 5, 29, .08)); }
+    .frame { position: absolute; inset: 37px; border: 1px solid rgba(235, 197, 115, .32); pointer-events: none; }
+    .content { position: relative; z-index: 1; height: 100%; padding: 78px 92px 0; }
+    .brand { display: flex; align-items: center; gap: 23px; }
+    .brand img { width: 122px; height: 122px; object-fit: cover; object-position: center; border-radius: 50%; }
+    .brand-eyebrow { margin: 0 0 7px; color: #ecc777; letter-spacing: 4.5px; font-weight: 800; font-size: 23px; }
+    .brand-name { margin: 0; font-family: Georgia, serif; font-size: 38px; letter-spacing: .4px; }
+    .layout { display: grid; grid-template-columns: 1.46fr .83fr; gap: 72px; margin-top: 51px; }
+    .event-title { margin: 25px 0 22px; max-width: 1110px; font: 800 112px/.93 Georgia, serif; letter-spacing: -2.5px; text-transform: uppercase; }
+    .event-title em { color: #e9bd6c; font-style: italic; }
+    .divider { width: 720px; border-top: 3px solid #d8a653; margin: 31px 0 30px; }
+    .subtitle { font: 42px/1.12 Georgia, serif; max-width: 830px; color: #fffaf1; }
+    .info { border-left: 3px solid #d8a653; padding: 17px 0 17px 26px; margin: 2px 0 28px; }
+    .info p { margin: 0 0 14px; color: #f0c976; font: 800 31px/1.1 Georgia, serif; letter-spacing: .2px; }
+    .info p:last-child { margin-bottom: 0; }
+    .info .mode { font: 700 25px/1.15 Arial, sans-serif; letter-spacing: 2px; color: #e7e0ee; }
+    .includes { width: 670px; margin-top: 62px; padding: 25px 30px 22px; border: 1px solid rgba(215, 170, 88, .6); background: rgba(14, 16, 62, .58); }
+    .includes h2 { margin: 0 0 15px; color: #edc979; font-size: 18px; letter-spacing: 3px; }
+    .includes p { margin: 0; font-size: 23px; line-height: 1.48; color: #fffaf1; }
+    .includes p span { color: #ecc777; font-weight: 800; }
+    .qr-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 27px; margin-top: 29px; }
+    .qr-card { text-align: center; }
+    .qr-shell { width: 200px; height: 200px; margin: 0 auto 16px; padding: 12px; border-radius: 16px; background: #fffdf7; box-shadow: 0 0 0 4px rgba(217, 166, 83, .72), 0 12px 30px rgba(0, 0, 0, .26); }
+    .qr-shell img { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+    .qr-card strong { display: block; font-size: 19px; letter-spacing: 1.3px; }
+    .qr-card small { display: block; margin-top: 6px; color: #d6cfdf; font-size: 15px; letter-spacing: .8px; }
+    .schedule { margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(238, 201, 121, .45); }
+    .schedule b { display: block; color: #ecc777; font-size: 17px; letter-spacing: 2.4px; margin-bottom: 9px; }
+    .schedule p { margin: 0; font: 24px/1.27 Georgia, serif; }
+    .notice { position: absolute; left: 92px; bottom: 151px; color: #efce87; font-size: 25px; letter-spacing: .7px; }
+    .footer { position: absolute; left: 0; right: 0; bottom: 0; height: 113px; padding: 17px 250px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 58px; align-items: center; background: linear-gradient(90deg, rgba(210,154,58,.93), rgba(255,239,169,.98) 46%, rgba(218,169,83,.95)); }
+    .footer .logo-slot { height: 78px; display: flex; align-items: center; justify-content: center; }
+    .footer img { max-width: 100%; max-height: 76px; object-fit: contain; }
+    .footer .event-logo { width: 105px; height: 78px; object-fit: cover; object-position: center; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <div class="frame"></div>
+  <main class="content">
+    <header class="brand">
+      <img src="./logo-encuentro.png" alt="Logo del Encuentro Clínico" />
+      <div>
+        <p class="brand-eyebrow">ENCUENTRO CLÍNICO DE PSICOLOGÍA</p>
+        <p class="brand-name">Cuando el Duelo se Detiene</p>
+      </div>
+    </header>
+
+    <div class="layout">
+      <section>
+        <h1 class="event-title">CUANDO EL DUELO<br><em>SE DETIENE.</em></h1>
+        <div class="divider"></div>
+        <p class="subtitle">Jornada Clínica sobre<br>Duelo Prolongado</p>
+        <div class="includes">
+          <h2>UNA JORNADA PARA PROFUNDIZAR</h2>
+          <p><span>6 conferencias clínicas</span> sobre diagnóstico, atención primaria, abordaje familiar, síntomas físicos, manejo psiquiátrico y abordaje local.</p>
+        </div>
+      </section>
+
+      <aside>
+        <section class="info" aria-label="Datos del evento">
+          <p>15 DE AGOSTO 2026</p>
+          <p>8:30 A.M. – 12:00 P.M.</p>
+          <p>CHIMALTENANGO</p>
+          <p class="mode">(PRESENCIAL O VIRTUAL)</p>
+        </section>
+        <div class="qr-grid">
+          <div class="qr-card">
+            <div class="qr-shell"><img src="https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=0&data=https%3A%2F%2Fmaps.app.goo.gl%2FBTYVt9Fs7JeiQ1vw5" alt="QR para llegar" /></div>
+            <strong>CÓMO LLEGAR</strong><small>GOOGLE MAPS</small>
+          </div>
+          <div class="qr-card">
+            <div class="qr-shell"><img src="https://api.qrserver.com/v1/create-qr-code/?size=360x360&margin=0&data=https%3A%2F%2Fencuentropsicologico.vercel.app" alt="QR para inscripción" /></div>
+            <strong>INSCRIPCIÓN</strong><small>SITIO OFICIAL</small>
+          </div>
+        </div>
+        <section class="schedule">
+          <b>LA INSCRIPCIÓN INCLUYE</b>
+          <p>Acceso a la jornada · Diploma de participación · Materiales y recursos</p>
+        </section>
+      </aside>
+    </div>
+    <p class="notice">Cupo presencial limitado · inscripción previa obligatoria</p>
+  </main>
+  <footer class="footer">
+    <div class="logo-slot"><img class="event-logo" src="./logo-encuentro.png" alt="Encuentro Clínico" /></div>
+    <div class="logo-slot"><img src="./logo-cpg.png" alt="Colegio de Psicólogos de Guatemala" /></div>
+    <div class="logo-slot"><img src="./logo-caeduc.png" alt="CAEDUC" /></div>
+    <div class="logo-slot"><img src="./logo-upana.png" alt="UPANA" /></div>
+  </footer>
+</body>
+</html>
