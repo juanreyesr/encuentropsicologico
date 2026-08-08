@@ -6,6 +6,8 @@ import { createHmac, timingSafeEqual } from "crypto";
 const ACCESS_COOKIE = "encuentro_access";
 const REFRESH_COOKIE = "encuentro_refresh";
 const PARTICIPANT_COOKIE = "encuentro_participant";
+const ADMIN_COOKIE = "encuentro_admin";
+const ADMIN_SESSION_SECONDS = 60 * 60;
 
 export type AuthUser = { id: string; email: string; app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown>; eventOnly?: boolean };
 
@@ -29,6 +31,11 @@ function encodeParticipantSession(user: AuthUser) {
   return `${payload}.${signPayload(payload)}`;
 }
 
+function encodeAdminSession(user: AuthUser, maxAge = ADMIN_SESSION_SECONDS) {
+  const payload = Buffer.from(JSON.stringify({ id: user.id, email: user.email, exp: Date.now() + maxAge * 1000 })).toString("base64url");
+  return `${payload}.${signPayload(payload)}`;
+}
+
 function decodeParticipantSession(value?: string): AuthUser | null {
   if (!value) return null;
   const [payload, signature] = value.split(".");
@@ -46,6 +53,23 @@ function decodeParticipantSession(value?: string): AuthUser | null {
   }
 }
 
+function decodeAdminSession(value?: string): AuthUser | null {
+  if (!value) return null;
+  const [payload, signature] = value.split(".");
+  if (!payload || !signature) return null;
+  const expected = signPayload(payload);
+  const expectedBuffer = Buffer.from(expected);
+  const signatureBuffer = Buffer.from(signature);
+  if (expectedBuffer.length !== signatureBuffer.length || !timingSafeEqual(expectedBuffer, signatureBuffer)) return null;
+  try {
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { id?: string; email?: string; exp?: number };
+    if (!data.id || !data.email || !data.exp || data.exp < Date.now()) return null;
+    return { id: data.id, email: data.email, app_metadata: { encuentro_psicologico_role: "admin" } };
+  } catch {
+    return null;
+  }
+}
+
 export async function findAuthUserIdByEmail(email: string) {
   const response = await restFetch("rpc/encuentro_psicologico_auth_user_id", { method: "POST", body: JSON.stringify({ p_email: email }) });
   if (!response.ok) return null;
@@ -57,7 +81,31 @@ export async function startParticipantSession(user: AuthUser) {
   const secure = process.env.NODE_ENV === "production";
   jar.delete(ACCESS_COOKIE);
   jar.delete(REFRESH_COOKIE);
+  jar.delete(ADMIN_COOKIE);
   jar.set(PARTICIPANT_COOKIE, encodeParticipantSession(user), { httpOnly: true, secure, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
+}
+
+/**
+ * A short-lived, signed marker keeps calls made from the already-authorized
+ * admin screen coherent while an Auth access token is being refreshed.
+ * It is httpOnly and is never used for participant accounts.
+ */
+export async function startAdminSession(user: AuthUser, maxAge = ADMIN_SESSION_SECONDS) {
+  const jar = await cookies();
+  const secure = process.env.NODE_ENV === "production";
+  jar.delete(PARTICIPANT_COOKIE);
+  jar.set(ADMIN_COOKIE, encodeAdminSession(user, Math.max(60, Math.min(maxAge, ADMIN_SESSION_SECONDS))), {
+    httpOnly: true,
+    secure,
+    sameSite: "lax",
+    path: "/",
+    maxAge: Math.max(60, Math.min(maxAge, ADMIN_SESSION_SECONDS)),
+  });
+}
+
+export async function hasAdminSession() {
+  const jar = await cookies();
+  return Boolean(decodeAdminSession(jar.get(ADMIN_COOKIE)?.value));
 }
 
 async function isEventParticipant(userId: string) {
@@ -91,6 +139,7 @@ export async function signIn(email: string, password: string) {
   const session = await response.json() as { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
   if (session.user.app_metadata?.encuentro_psicologico_role !== "admin") return null;
   await storeSession(session);
+  await startAdminSession(session.user, session.expires_in);
   return session.user;
 }
 
@@ -115,6 +164,8 @@ export async function refreshSession(): Promise<AuthUser | null> {
   if (!refreshed.ok) return null;
   const session = await refreshed.json() as { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
   await storeSession(session);
+  if (session.user.app_metadata?.encuentro_psicologico_role === "admin") await startAdminSession(session.user, session.expires_in);
+  else (await cookies()).delete(ADMIN_COOKIE);
   return session.user;
 }
 
@@ -137,7 +188,7 @@ export async function currentUser(options: { refresh?: boolean } = {}): Promise<
 
 export async function clearSession() {
   const jar = await cookies();
-  jar.delete(ACCESS_COOKIE); jar.delete(REFRESH_COOKIE); jar.delete(PARTICIPANT_COOKIE);
+  jar.delete(ACCESS_COOKIE); jar.delete(REFRESH_COOKIE); jar.delete(PARTICIPANT_COOKIE); jar.delete(ADMIN_COOKIE);
 }
 
 export async function requireUser(returnTo = "/mi-cuenta") {

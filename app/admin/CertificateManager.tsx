@@ -61,7 +61,7 @@ export default function CertificateManager() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/admin/certificates")
+    fetch("/api/admin/certificates", { credentials: "same-origin", cache: "no-store" })
       .then(async response => {
         if (!response.ok || !active) return;
         const { settings: saved } = await response.json();
@@ -163,6 +163,8 @@ export default function CertificateManager() {
     setPreviewError("");
     const response = await fetch("/api/admin/certificates/preview", {
       method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ settings, type, fullName: sampleName }),
     });

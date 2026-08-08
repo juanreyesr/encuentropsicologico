@@ -1,6 +1,10 @@
-import { currentUser } from "./auth";
+import { currentUser, hasAdminSession, startAdminSession } from "./auth";
 
 export async function isEventAdmin() {
   const user = await currentUser();
-  return user?.app_metadata?.encuentro_psicologico_role === "admin";
+  if (user?.app_metadata?.encuentro_psicologico_role === "admin") {
+    await startAdminSession(user);
+    return true;
+  }
+  return await hasAdminSession();
 }

@@ -1,7 +1,7 @@
-import { currentUser } from "../../../../lib/auth";
+import { isEventAdmin } from "../../../../lib/admin";
 import { supabaseServerFetch } from "../../../../lib/supabase-server";
 
-async function authorized() { const user = await currentUser(); return user?.app_metadata?.encuentro_psicologico_role === "admin"; }
+async function authorized() { return await isEventAdmin(); }
 
 export async function GET() {
   if (!await authorized()) return Response.json({ error: "No autorizado" }, { status: 401 });
