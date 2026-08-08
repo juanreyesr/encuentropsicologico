@@ -7,6 +7,7 @@ type Settings = Required<CertificateSettings>;
 type CertificateType = "professional" | "general";
 type BusyAction = "upload" | "save" | "generate" | null;
 const DIRECT_UPLOAD_LIMIT = 3.5 * 1024 * 1024;
+const MAX_SPONSOR_LOGOS = 3;
 
 function freshSettings(): Settings {
   return {
@@ -24,7 +25,7 @@ function mergeSettings(saved: Partial<Settings>): Settings {
     signatures: Array.isArray(saved.signatures)
       ? [saved.signatures[0] ?? fallback.signatures[0], saved.signatures[1] ?? fallback.signatures[1]]
       : fallback.signatures,
-    sponsor_logos: Array.isArray(saved.sponsor_logos) ? saved.sponsor_logos : [],
+    sponsor_logos: Array.isArray(saved.sponsor_logos) ? saved.sponsor_logos.slice(0, MAX_SPONSOR_LOGOS) : [],
   };
 }
 
@@ -55,7 +56,8 @@ async function optimizeImageForUpload(file: File) {
   }
 
   const source = await createImageBitmap(file);
-  const largestSide = 2200;
+  // Más que suficiente para un logo de diploma, sin cargar píxeles que nunca se mostrarán.
+  const largestSide = 960;
   const scale = Math.min(1, largestSide / Math.max(source.width, source.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(source.width * scale));
@@ -121,6 +123,11 @@ export default function CertificateManager() {
   async function upload(event: ChangeEvent<HTMLInputElement>, type: "signature" | "logo", index = 0) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (type === "logo" && settings.sponsor_logos.length >= MAX_SPONSOR_LOGOS) {
+      setMessage("El diploma admite hasta 3 logos de patrocinadores.");
+      event.target.value = "";
+      return;
+    }
     if (file.size > 10 * 1024 * 1024) {
       setMessage("La imagen supera 10 MB. Elige una versión más liviana para que cargue correctamente.");
       event.target.value = "";
@@ -146,7 +153,7 @@ export default function CertificateManager() {
           signatures: current.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, image_url: data.url as string } : item),
         }));
       } else {
-        setSettings(current => ({ ...current, sponsor_logos: [...current.sponsor_logos, data.url as string] }));
+        setSettings(current => ({ ...current, sponsor_logos: [...current.sponsor_logos, data.url as string].slice(0, MAX_SPONSOR_LOGOS) }));
       }
       setMessage(type === "signature" ? "Firma cargada. Guarda el modelo para conservarla." : "Logo cargado. Guarda el modelo para conservarlo.");
     } catch (error) {
@@ -280,7 +287,7 @@ export default function CertificateManager() {
 
             <div className="certificate-logos">
               <h3>Patrocinadores</h3>
-              <p>Agrega los logos que deban aparecer en el pie del diploma.</p>
+              <p>Agrega hasta 3 logos para el pie del diploma. Cada uno se ajustará al mismo espacio, sin deformarse ni recortarse.</p>
               <div>
                 {settings.sponsor_logos.map((url, index) => (
                   <figure key={`${url}-${index}`}>
@@ -288,8 +295,9 @@ export default function CertificateManager() {
                     <button type="button" aria-label="Quitar logo" disabled={busyAction !== null} onClick={() => setSettings({ ...settings, sponsor_logos: settings.sponsor_logos.filter((_, itemIndex) => itemIndex !== index) })}>×</button>
                   </figure>
                 ))}
-                <label className="certificate-logo-upload"><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "logo")} /><strong>{busyAction === "upload" ? "Cargando imagen…" : "Agregar logo"}</strong><small>PNG, JPG o WebP · máximo 10 MB</small></label>
+                {settings.sponsor_logos.length < MAX_SPONSOR_LOGOS && <label className="certificate-logo-upload"><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "logo")} /><strong>{busyAction === "upload" ? "Cargando imagen…" : "Agregar logo"}</strong><small>{settings.sponsor_logos.length} de {MAX_SPONSOR_LOGOS} logos · PNG, JPG o WebP</small></label>}
               </div>
+              {settings.sponsor_logos.length === MAX_SPONSOR_LOGOS && <small className="certificate-logo-limit">Ya agregaste los 3 logos. Puedes quitar uno para reemplazarlo.</small>}
             </div>
 
             {message && <p className={isErrorMessage(message) ? "community-error" : "community-success"} role="status">{message}</p>}

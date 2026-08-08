@@ -1,4 +1,5 @@
 export type CertificateSignature = { name?: string; role?: string; image_url?: string };
+const MAX_SPONSOR_LOGOS = 3;
 export type CertificateSettings = {
   event_name?: string;
   event_date?: string;
@@ -43,7 +44,7 @@ export function normalizeCertificateSettings(value: unknown): Required<Certifica
     professional_body: cleanString(source.professional_body, 700) || DEFAULT_CERTIFICATE_SETTINGS.professional_body,
     general_body: cleanString(source.general_body, 700) || DEFAULT_CERTIFICATE_SETTINGS.general_body,
     signatures,
-    sponsor_logos: Array.isArray(source.sponsor_logos) ? source.sponsor_logos.map(item => cleanString(item, 800)).filter(Boolean).slice(0, 12) : [],
+    sponsor_logos: Array.isArray(source.sponsor_logos) ? source.sponsor_logos.map(item => cleanString(item, 800)).filter(Boolean).slice(0, MAX_SPONSOR_LOGOS) : [],
   };
 }
 
@@ -68,7 +69,7 @@ export function buildCertificateHtml({
   const title = type === "professional" ? template.professional_title : template.general_title;
   const body = type === "professional" ? template.professional_body : template.general_body;
   const signatures = template.signatures.slice(0, 2);
-  const logos = template.sponsor_logos.slice(0, 12);
+  const logos = template.sponsor_logos.slice(0, MAX_SPONSOR_LOGOS);
   const signatureHtml = signatures.map(signature => `<div class="signature">${signature.image_url ? `<img src="${escapeHtml(signature.image_url)}" alt="Firma de ${escapeHtml(signature.name || "representante")}" />` : ""}<div class="line"></div><b>${escapeHtml(signature.name)}</b><small>${escapeHtml(signature.role)}</small></div>`).join("");
   const logosHtml = logos.length ? `<div class="logos">${logos.map(url => `<img src="${escapeHtml(url)}" alt="Logo de institución participante" />`).join("")}</div>` : "";
 
