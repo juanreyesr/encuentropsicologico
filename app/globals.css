@@ -93,3 +93,6 @@
 @media(max-width:520px){.certificate-modal{width:100vw!important;max-height:100dvh!important;min-height:100dvh;padding:1.15rem!important}.certificate-modal .community-modal-close{right:.55rem;top:.55rem}.certificate-modal h2{padding-right:2.8rem}.certificate-logos>div{display:grid;grid-template-columns:1fr}.certificate-logos figure,.certificate-logo-upload{width:100%;min-height:110px}.certificate-file-control strong{font-size:.72rem}}
 
 .certificate-logo-limit{display:block;margin-top:.75rem;color:#75684f}
+
+/* Los saltos de línea escritos desde el administrador son parte del contenido. */
+.preserve-newlines{white-space:pre-line}
