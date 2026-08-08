@@ -6,6 +6,7 @@ import { DEFAULT_CERTIFICATE_SETTINGS, type CertificateSettings } from "../../li
 type Settings = Required<CertificateSettings>;
 type CertificateType = "professional" | "general";
 type BusyAction = "upload" | "save" | "generate" | null;
+const DIRECT_UPLOAD_LIMIT = 3.5 * 1024 * 1024;
 
 function freshSettings(): Settings {
   return {
@@ -45,6 +46,41 @@ function requestError(error: unknown, fallback: string) {
   return error instanceof DOMException && error.name === "AbortError"
     ? "La operación tardó demasiado. Intenta otra vez o usa una imagen más liviana."
     : fallback;
+}
+
+async function optimizeImageForUpload(file: File) {
+  if (file.size <= DIRECT_UPLOAD_LIMIT) return file;
+  if (!(file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/webp")) {
+    throw new Error("El archivo debe ser una imagen JPG, PNG o WebP.");
+  }
+
+  const source = await createImageBitmap(file);
+  const largestSide = 2200;
+  const scale = Math.min(1, largestSide / Math.max(source.width, source.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(source.width * scale));
+  canvas.height = Math.max(1, Math.round(source.height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No se pudo preparar la imagen para la carga.");
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  source.close();
+
+  const makeFile = (quality: number) => new Promise<File | null>(resolve => {
+    canvas.toBlob(blob => {
+      resolve(blob ? new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.webp`, { type: "image/webp" }) : null);
+    }, "image/webp", quality);
+  });
+
+  let optimized = await makeFile(.82);
+  if (!optimized || optimized.size > DIRECT_UPLOAD_LIMIT) optimized = await makeFile(.68);
+  if (!optimized || optimized.size > DIRECT_UPLOAD_LIMIT) {
+    throw new Error("No se pudo reducir la imagen lo suficiente. Usa una versión de menos de 3 MB.");
+  }
+  return optimized;
+}
+
+function isErrorMessage(message: string) {
+  return /no se pudo|tardó|supera|demasiado|error|large|no autorizado/i.test(message);
 }
 
 export default function CertificateManager() {
@@ -92,13 +128,16 @@ export default function CertificateManager() {
     }
     setBusyAction("upload");
     setMessage("");
-    const form = new FormData();
-    form.append("file", file);
-    form.append("purpose", "certificate");
     try {
+      const fileToUpload = await optimizeImageForUpload(file);
+      const form = new FormData();
+      form.append("file", fileToUpload);
+      form.append("purpose", "certificate");
       const { response, data } = await requestJson("/api/admin/media", { method: "POST", body: form }, 35_000);
       if (!response.ok || typeof data.url !== "string") {
-        setMessage(String(data.error ?? "No se pudo cargar la imagen."));
+        setMessage(response.status === 413
+          ? "La imagen sigue siendo demasiado grande para cargarla. Usa una versión de menos de 3 MB."
+          : String(data.error ?? "No se pudo cargar la imagen."));
         return;
       }
       if (type === "signature") {
@@ -111,7 +150,7 @@ export default function CertificateManager() {
       }
       setMessage(type === "signature" ? "Firma cargada. Guarda el modelo para conservarla." : "Logo cargado. Guarda el modelo para conservarlo.");
     } catch (error) {
-      setMessage(requestError(error, "No se pudo cargar la imagen. Comprueba tu conexión e inténtalo de nuevo."));
+      setMessage(error instanceof Error ? error.message : requestError(error, "No se pudo cargar la imagen. Comprueba tu conexión e inténtalo de nuevo."));
     } finally {
       setBusyAction(null);
       event.target.value = "";
@@ -201,7 +240,7 @@ export default function CertificateManager() {
           <button className="secondary certificate-preview-trigger" onClick={() => void showPreview()}>Previsualizar certificados</button>
           <button className="admin-save" disabled={busyAction !== null} onClick={generate}>{busyAction === "generate" ? "Procesando…" : "Generar certificados para confirmados"}</button>
         </div>
-        {message && <p className="community-success" role="status">{message}</p>}
+        {message && <p className={isErrorMessage(message) ? "community-error" : "community-success"} role="status">{message}</p>}
       </div>
 
       {editorOpen && (
@@ -253,7 +292,7 @@ export default function CertificateManager() {
               </div>
             </div>
 
-            {message && <p className={message.includes("No se pudo") || message.includes("tardó") || message.includes("supera") ? "community-error" : "community-success"} role="status">{message}</p>}
+            {message && <p className={isErrorMessage(message) ? "community-error" : "community-success"} role="status">{message}</p>}
 
             <div className="community-modal-actions certificate-editor-actions">
               <button className="secondary" onClick={() => setEditorOpen(false)}>Cerrar</button>
