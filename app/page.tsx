@@ -203,7 +203,7 @@ export default function Home() {
             <button className="secondary" onClick={() => openRegistration("virtual")}>Participar en línea <span>→</span></button>
           </div>
           <button className={`seat-availability ${full ? "is-full" : ""}`} onClick={() => openRegistration("presencial")}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Reserva tu espacio si se libera" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de 250`}</span></button>
-          <div className="hero-meta"><span><b>01</b> jornada</span><span><b>06</b> ponentes</span><span><b>3.5</b> horas</span></div>
+          <div className="hero-meta"><span><b>01</b> jornada</span><span><b>06</b> ponentes</span><span><b>3.5</b> horas</span><a className="hero-directions" href="https://maps.app.goo.gl/BTYVt9Fs7JeiQ1vw5" target="_blank" rel="noreferrer" aria-label="Cómo llegar al evento con Google Maps"><i aria-hidden="true">⌖</i><span>Cómo llegar<small>Google Maps</small></span><em aria-hidden="true">↗</em></a></div>
           <div className="countdown"><span>Faltan</span><b>{daysRemaining}</b><span>días para la jornada</span></div>
         </div>
         <div className="hero-stage keynote-arch" role="img" aria-label="Ponente en escenario durante una conferencia clínica">

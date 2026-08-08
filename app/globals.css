@@ -96,3 +96,7 @@
 
 /* Los saltos de línea escritos desde el administrador son parte del contenido. */
 .preserve-newlines{white-space:pre-line}
+
+/* Acceso a la sede junto a las métricas de la portada. */
+.hero-meta{flex-wrap:wrap}.hero-directions{display:inline-flex;align-items:center;gap:.55rem;min-height:42px;padding:.5rem .7rem;border:1px solid rgba(218,187,133,.42);color:#f2f0f8;text-decoration:none;transition:background .2s ease,border-color .2s ease,transform .2s ease}.hero-directions:hover,.hero-directions:focus-visible{border-color:#deb568;background:rgba(218,187,133,.13);transform:translateY(-2px);outline:none}.hero-directions>i{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:rgba(218,187,133,.16);color:#e3bb70;font-size:1.05rem;font-style:normal}.hero-directions>span{display:grid;gap:.12rem;font-size:.63rem;font-weight:700;letter-spacing:.12em;line-height:1.1;text-transform:uppercase}.hero-directions small{font-size:.48rem;font-weight:600;letter-spacing:.1em;color:#bdb9cb}.hero-directions em{margin-left:.15rem;color:#deb568;font-size:.9rem;font-style:normal}.hero-meta .hero-directions{margin-top:-.25rem}
+@media(max-width:700px){.hero-meta{align-items:flex-start}.hero-meta .hero-directions{margin-top:0}.hero-directions{flex:1 0 100%;max-width:210px}}
