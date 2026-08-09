@@ -1,4 +1,5 @@
 import { requireUser } from "../../lib/auth";
+import { DEFAULT_PROGRAM, type EventProgramItem } from "../../lib/event";
 import { supabaseServerFetch } from "../../lib/supabase-server";
 import Link from "next/link";
 import AccountNameEditor from "./AccountNameEditor";
@@ -7,8 +8,30 @@ import CommunityLibrary from "./CommunityLibrary";
 import AttendanceVerifier from "./AttendanceVerifier";
 import ModalitySwitcher from "./ModalitySwitcher";
 import EventMaterials from "./EventMaterials";
+import SpeakerAssignmentCard, { type SpeakerAssignment } from "./SpeakerAssignment";
 
 export const dynamic = "force-dynamic";
+
+// El super administrador asigna la conferencia desde la inscripción; el programa se lee en
+// cada visita para que el ponente vea su tema y su horario sin ningún paso extra.
+async function loadSpeakerAssignment(programItemId?: number | null): Promise<SpeakerAssignment | null> {
+  if (!programItemId) return null;
+  const [programResponse, speakerResponse] = await Promise.all([
+    supabaseServerFetch("encuentro_psicologico_program?select=id,start_time,end_time,type,title,description,details,display_order,is_published&order=display_order.asc,id.asc"),
+    supabaseServerFetch(`encuentro_psicologico_speakers?select=talk_title&program_item_id=eq.${programItemId}&limit=1`),
+  ]);
+  const stored = programResponse.ok ? await programResponse.json() as EventProgramItem[] : [];
+  const program = stored.length > 0 ? stored : DEFAULT_PROGRAM;
+  const item = program.find(entry => entry.id === programItemId);
+  if (!item) return null;
+  const published = program.filter(entry => entry.is_published !== false && entry.id !== item.id);
+  const [speaker] = speakerResponse.ok ? await speakerResponse.json() as Array<{ talk_title?: string | null }> : [];
+  return {
+    item,
+    talkTitle: speaker?.talk_title?.trim() ?? "",
+    panel: published.find(entry => /pregunta|panel/i.test(`${entry.title} ${entry.description}`)) ?? published.at(-1) ?? null,
+  };
+}
 
 export default async function AccountPage() {
   const user = await requireUser();
@@ -27,6 +50,8 @@ export default async function AccountPage() {
   const communityStars = rewardResponse.ok ? Number(rewardResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
   const pendingCommunityStars = pendingResourceResponse.ok ? Number(pendingResourceResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
   const activeRegistration = registrations[0];
+  const speakerRegistration = registrations.find(item => item.event_roles?.includes("speaker")) ?? null;
+  const speakerAssignment = speakerRegistration ? await loadSpeakerAssignment(speakerRegistration.speaker_program_item_id) : null;
 
   return <main className="account-page">
     <header>
@@ -42,7 +67,7 @@ export default async function AccountPage() {
         <article><span>CONSTANCIA</span><h2>{certificate?.attendance_confirmed ? "Disponible" : "Se habilitará después del evento"}</h2><p>La asistencia debe ser confirmada por la organización.</p>{certificate?.attendance_confirmed && <a className="primary" href="/api/account/certificate">Descargar constancia</a>}</article>
       </div>
       <AttendanceVerifier isOrganizer={registrations.some(item => item.event_roles?.includes("organizer"))} />
-      {registrations.some(item => item.event_roles?.includes("speaker")) && <details className="account-resources speaker-account-link"><summary><span>ESPACIO DE PONENTE</span><h2>Preguntas de tu conferencia <b aria-hidden="true">+</b></h2></summary><div className="account-resources-body"><p>Cuando la organización active las preguntas en vivo, aquí tendrás acceso a tu bandeja para marcar las que responderás durante el panel.</p><Link className="primary" href="/preguntas">Abrir preguntas recibidas</Link></div></details>}
+      {speakerRegistration && <SpeakerAssignmentCard assignment={speakerAssignment} />}
       <EventMaterials />
       <CommunityLibrary />
       <ProfessionalNetworkEditor initialOptIn={Boolean(profile?.professional_network_opt_in)} initialDirectory={directory ?? null} />
