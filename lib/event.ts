@@ -1,7 +1,5 @@
 export const EVENT_START = "2026-08-15T08:30:00-06:00";
 export const EVENT_CAPACITY = 250;
-export const EVENT_DATE_LABEL = "15 de agosto de 2026";
-export const EVENT_PLACE_LABEL = "Chimaltenango";
 
 export function eventDaysRemaining(now = Date.now()) {
   return Math.max(0, Math.ceil((new Date(EVENT_START).getTime() - now) / 86_400_000));

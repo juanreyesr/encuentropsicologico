@@ -1,5 +1,5 @@
 import { requireUser } from "../../lib/auth";
-import { DEFAULT_PROGRAM, EVENT_DATE_LABEL, EVENT_PLACE_LABEL, type EventProgramItem } from "../../lib/event";
+import { DEFAULT_PROGRAM, type EventProgramItem } from "../../lib/event";
 import { supabaseServerFetch } from "../../lib/supabase-server";
 import Link from "next/link";
 import AccountNameEditor from "./AccountNameEditor";
@@ -12,25 +12,24 @@ import SpeakerAssignmentCard, { type SpeakerAssignment } from "./SpeakerAssignme
 
 export const dynamic = "force-dynamic";
 
-// El super administrador asigna la conferencia desde la inscripción; estos datos se leen
-// en cada visita para que el ponente vea su tema, horario y detalle sin ningún paso extra.
+// El super administrador asigna la conferencia desde la inscripción; el programa se lee en
+// cada visita para que el ponente vea su tema y su horario sin ningún paso extra.
 async function loadSpeakerAssignment(programItemId?: number | null): Promise<SpeakerAssignment | null> {
   if (!programItemId) return null;
-  const [programResponse, speakerResponse, contentResponse] = await Promise.all([
-    supabaseServerFetch(`encuentro_psicologico_program?select=id,start_time,end_time,type,title,description,details&id=eq.${programItemId}&limit=1`),
+  const [programResponse, speakerResponse] = await Promise.all([
+    supabaseServerFetch("encuentro_psicologico_program?select=id,start_time,end_time,type,title,description,details,display_order,is_published&order=display_order.asc,id.asc"),
     supabaseServerFetch(`encuentro_psicologico_speakers?select=talk_title&program_item_id=eq.${programItemId}&limit=1`),
-    supabaseServerFetch("encuentro_psicologico_content?select=payload&id=eq.site&limit=1"),
   ]);
-  const [programItem] = programResponse.ok ? await programResponse.json() as EventProgramItem[] : [];
-  const item = programItem ?? DEFAULT_PROGRAM.find(entry => entry.id === programItemId);
+  const stored = programResponse.ok ? await programResponse.json() as EventProgramItem[] : [];
+  const program = stored.length > 0 ? stored : DEFAULT_PROGRAM;
+  const item = program.find(entry => entry.id === programItemId);
   if (!item) return null;
+  const published = program.filter(entry => entry.is_published !== false && entry.id !== item.id);
   const [speaker] = speakerResponse.ok ? await speakerResponse.json() as Array<{ talk_title?: string | null }> : [];
-  const [content] = contentResponse.ok ? await contentResponse.json() as Array<{ payload?: { date?: string; place?: string } }> : [];
   return {
     item,
     talkTitle: speaker?.talk_title?.trim() ?? "",
-    eventDate: content?.payload?.date?.trim() || EVENT_DATE_LABEL,
-    eventPlace: content?.payload?.place?.trim() || EVENT_PLACE_LABEL,
+    panel: published.find(entry => /pregunta|panel/i.test(`${entry.title} ${entry.description}`)) ?? published.at(-1) ?? null,
   };
 }
 
