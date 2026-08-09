@@ -1,4 +1,5 @@
 import { requireUser } from "../../lib/auth";
+import { DEFAULT_PROGRAM, EVENT_DATE_LABEL, EVENT_PLACE_LABEL, type EventProgramItem } from "../../lib/event";
 import { supabaseServerFetch } from "../../lib/supabase-server";
 import Link from "next/link";
 import AccountNameEditor from "./AccountNameEditor";
@@ -7,8 +8,31 @@ import CommunityLibrary from "./CommunityLibrary";
 import AttendanceVerifier from "./AttendanceVerifier";
 import ModalitySwitcher from "./ModalitySwitcher";
 import EventMaterials from "./EventMaterials";
+import SpeakerAssignmentCard, { type SpeakerAssignment } from "./SpeakerAssignment";
 
 export const dynamic = "force-dynamic";
+
+// El super administrador asigna la conferencia desde la inscripción; estos datos se leen
+// en cada visita para que el ponente vea su tema, horario y detalle sin ningún paso extra.
+async function loadSpeakerAssignment(programItemId?: number | null): Promise<SpeakerAssignment | null> {
+  if (!programItemId) return null;
+  const [programResponse, speakerResponse, contentResponse] = await Promise.all([
+    supabaseServerFetch(`encuentro_psicologico_program?select=id,start_time,end_time,type,title,description,details&id=eq.${programItemId}&limit=1`),
+    supabaseServerFetch(`encuentro_psicologico_speakers?select=talk_title&program_item_id=eq.${programItemId}&limit=1`),
+    supabaseServerFetch("encuentro_psicologico_content?select=payload&id=eq.site&limit=1"),
+  ]);
+  const [programItem] = programResponse.ok ? await programResponse.json() as EventProgramItem[] : [];
+  const item = programItem ?? DEFAULT_PROGRAM.find(entry => entry.id === programItemId);
+  if (!item) return null;
+  const [speaker] = speakerResponse.ok ? await speakerResponse.json() as Array<{ talk_title?: string | null }> : [];
+  const [content] = contentResponse.ok ? await contentResponse.json() as Array<{ payload?: { date?: string; place?: string } }> : [];
+  return {
+    item,
+    talkTitle: speaker?.talk_title?.trim() ?? "",
+    eventDate: content?.payload?.date?.trim() || EVENT_DATE_LABEL,
+    eventPlace: content?.payload?.place?.trim() || EVENT_PLACE_LABEL,
+  };
+}
 
 export default async function AccountPage() {
   const user = await requireUser();
@@ -27,6 +51,8 @@ export default async function AccountPage() {
   const communityStars = rewardResponse.ok ? Number(rewardResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
   const pendingCommunityStars = pendingResourceResponse.ok ? Number(pendingResourceResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
   const activeRegistration = registrations[0];
+  const speakerRegistration = registrations.find(item => item.event_roles?.includes("speaker")) ?? null;
+  const speakerAssignment = speakerRegistration ? await loadSpeakerAssignment(speakerRegistration.speaker_program_item_id) : null;
 
   return <main className="account-page">
     <header>
@@ -42,7 +68,7 @@ export default async function AccountPage() {
         <article><span>CONSTANCIA</span><h2>{certificate?.attendance_confirmed ? "Disponible" : "Se habilitará después del evento"}</h2><p>La asistencia debe ser confirmada por la organización.</p>{certificate?.attendance_confirmed && <a className="primary" href="/api/account/certificate">Descargar constancia</a>}</article>
       </div>
       <AttendanceVerifier isOrganizer={registrations.some(item => item.event_roles?.includes("organizer"))} />
-      {registrations.some(item => item.event_roles?.includes("speaker")) && <details className="account-resources speaker-account-link"><summary><span>ESPACIO DE PONENTE</span><h2>Preguntas de tu conferencia <b aria-hidden="true">+</b></h2></summary><div className="account-resources-body"><p>Cuando la organización active las preguntas en vivo, aquí tendrás acceso a tu bandeja para marcar las que responderás durante el panel.</p><Link className="primary" href="/preguntas">Abrir preguntas recibidas</Link></div></details>}
+      {speakerRegistration && <SpeakerAssignmentCard assignment={speakerAssignment} />}
       <EventMaterials />
       <CommunityLibrary />
       <ProfessionalNetworkEditor initialOptIn={Boolean(profile?.professional_network_opt_in)} initialDirectory={directory ?? null} />
