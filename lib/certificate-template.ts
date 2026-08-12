@@ -1,13 +1,37 @@
 export type CertificateSignature = { name?: string; role?: string; image_url?: string };
 const MAX_SPONSOR_LOGOS = 3;
+
+/**
+ * Cada función dentro de la actividad recibe su propio diploma: participación
+ * profesional, participación general, reconocimiento a ponentes y
+ * reconocimiento al equipo organizador.
+ */
+export const CERTIFICATE_TYPES = ["professional", "general", "speaker", "organizer"] as const;
+export type CertificateType = (typeof CERTIFICATE_TYPES)[number];
+
+export const CERTIFICATE_TYPE_LABELS: Record<CertificateType, string> = {
+  professional: "Profesional",
+  general: "General",
+  speaker: "Ponente",
+  organizer: "Organización",
+};
+
+export function certificateType(value: unknown): CertificateType {
+  return CERTIFICATE_TYPES.includes(value as CertificateType) ? value as CertificateType : "general";
+}
+
 export type CertificateSettings = {
   event_name?: string;
   event_date?: string;
   event_place?: string;
   professional_title?: string;
   general_title?: string;
+  speaker_title?: string;
+  organizer_title?: string;
   professional_body?: string;
   general_body?: string;
+  speaker_body?: string;
+  organizer_body?: string;
   signatures?: CertificateSignature[];
   sponsor_logos?: string[];
 };
@@ -18,8 +42,12 @@ export const DEFAULT_CERTIFICATE_SETTINGS: Required<CertificateSettings> = {
   event_place: "Chimaltenango, Guatemala",
   professional_title: "Diploma de participación profesional",
   general_title: "Diploma de participación",
+  speaker_title: "Diploma de reconocimiento a ponente",
+  organizer_title: "Diploma de reconocimiento al equipo organizador",
   professional_body: "Por su valiosa participación y actualización profesional en la jornada clínica.",
   general_body: "Por su valiosa participación en la jornada clínica.",
+  speaker_body: "Por compartir su experiencia clínica como ponente de la jornada y aportar al crecimiento profesional de la comunidad.",
+  organizer_body: "Por su dedicación y trabajo en la organización de la jornada clínica, que hizo posible este encuentro.",
   signatures: [{ name: "", role: "", image_url: "" }, { name: "", role: "", image_url: "" }],
   sponsor_logos: [],
 };
@@ -41,8 +69,12 @@ export function normalizeCertificateSettings(value: unknown): Required<Certifica
     event_place: cleanString(source.event_place, 160) || DEFAULT_CERTIFICATE_SETTINGS.event_place,
     professional_title: cleanString(source.professional_title, 160) || DEFAULT_CERTIFICATE_SETTINGS.professional_title,
     general_title: cleanString(source.general_title, 160) || DEFAULT_CERTIFICATE_SETTINGS.general_title,
+    speaker_title: cleanString(source.speaker_title, 160) || DEFAULT_CERTIFICATE_SETTINGS.speaker_title,
+    organizer_title: cleanString(source.organizer_title, 160) || DEFAULT_CERTIFICATE_SETTINGS.organizer_title,
     professional_body: cleanString(source.professional_body, 700) || DEFAULT_CERTIFICATE_SETTINGS.professional_body,
     general_body: cleanString(source.general_body, 700) || DEFAULT_CERTIFICATE_SETTINGS.general_body,
+    speaker_body: cleanString(source.speaker_body, 700) || DEFAULT_CERTIFICATE_SETTINGS.speaker_body,
+    organizer_body: cleanString(source.organizer_body, 700) || DEFAULT_CERTIFICATE_SETTINGS.organizer_body,
     signatures,
     sponsor_logos: Array.isArray(source.sponsor_logos) ? source.sponsor_logos.map(item => cleanString(item, 800)).filter(Boolean).slice(0, MAX_SPONSOR_LOGOS) : [],
   };
@@ -60,14 +92,16 @@ export function buildCertificateHtml({
   autoPrint = false,
 }: {
   settings: CertificateSettings;
-  type: "professional" | "general";
+  type: CertificateType;
   fullName: string;
   certificateNumber: string;
   autoPrint?: boolean;
 }) {
   const template = normalizeCertificateSettings(settings);
-  const title = type === "professional" ? template.professional_title : template.general_title;
-  const body = type === "professional" ? template.professional_body : template.general_body;
+  const titles: Record<CertificateType, string> = { professional: template.professional_title, general: template.general_title, speaker: template.speaker_title, organizer: template.organizer_title };
+  const bodies: Record<CertificateType, string> = { professional: template.professional_body, general: template.general_body, speaker: template.speaker_body, organizer: template.organizer_body };
+  const title = titles[certificateType(type)];
+  const body = bodies[certificateType(type)];
   const signatures = template.signatures.slice(0, 2);
   const logos = template.sponsor_logos.slice(0, MAX_SPONSOR_LOGOS);
   const signatureHtml = signatures.map(signature => `<div class="signature">${signature.image_url ? `<img src="${escapeHtml(signature.image_url)}" alt="Firma de ${escapeHtml(signature.name || "representante")}" />` : ""}<div class="line"></div><b>${escapeHtml(signature.name)}</b><small>${escapeHtml(signature.role)}</small></div>`).join("");

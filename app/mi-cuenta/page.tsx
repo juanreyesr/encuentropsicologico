@@ -8,7 +8,9 @@ import CommunityLibrary from "./CommunityLibrary";
 import AttendanceVerifier from "./AttendanceVerifier";
 import ModalitySwitcher from "./ModalitySwitcher";
 import EventMaterials from "./EventMaterials";
+import LockedModule from "./LockedModule";
 import SpeakerAssignmentCard, { type SpeakerAssignment } from "./SpeakerAssignment";
+import { accountModules, loadEventControls } from "../../lib/event-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,8 @@ export default async function AccountPage() {
   const activeRegistration = registrations[0];
   const speakerRegistration = registrations.find(item => item.event_roles?.includes("speaker")) ?? null;
   const speakerAssignment = speakerRegistration ? await loadSpeakerAssignment(speakerRegistration.speaker_program_item_id) : null;
+  const isOrganizer = registrations.some(item => item.event_roles?.includes("organizer"));
+  const modules = accountModules(await loadEventControls(), isOrganizer);
 
   return <main className="account-page">
     <header>
@@ -64,12 +68,15 @@ export default async function AccountPage() {
       <p>Aquí encontrarás tu inscripción, materiales, constancia de participación y tus opciones de red profesional.</p>
       <div className="account-grid">
         <article><span>INSCRIPCIÓN</span><h2>{activeRegistration ? "Confirmada" : "Pendiente"}</h2>{activeRegistration && <><p>{activeRegistration.modality === "presencial" ? "Presencial" : "Virtual"} · {activeRegistration.status === "waitlist" ? "Lista de espera" : "Confirmada"}</p><ModalitySwitcher current={activeRegistration.modality as "presencial" | "virtual"} /></>}</article>
-        <article><span>CONSTANCIA</span><h2>{certificate?.attendance_confirmed ? "Disponible" : "Se habilitará después del evento"}</h2><p>La asistencia debe ser confirmada por la organización.</p>{certificate?.attendance_confirmed && <a className="primary" href="/api/account/certificate">Descargar constancia</a>}</article>
+        <article><span>CONSTANCIA</span><h2>{certificate?.attendance_confirmed && modules.certificates.enabled ? "Disponible" : "Se habilitará después del evento"}</h2><p>{modules.certificates.enabled ? "La asistencia debe ser confirmada por la organización." : "La descarga de diplomas está cerrada por la organización en este momento."}</p>{certificate?.attendance_confirmed && modules.certificates.enabled && <a className="primary" href="/api/account/certificate">Descargar constancia</a>}</article>
       </div>
-      <AttendanceVerifier isOrganizer={registrations.some(item => item.event_roles?.includes("organizer"))} />
+      <AttendanceVerifier isOrganizer={isOrganizer} />
       {speakerRegistration && <SpeakerAssignmentCard assignment={speakerAssignment} />}
-      <EventMaterials />
-      <CommunityLibrary />
+      {modules.questions.enabled
+        ? <article className="account-resources questions-access"><p className="section-kicker">PARTICIPACIÓN EN VIVO</p><h2>Preguntas a conferencistas</h2><p>El espacio está abierto: envía tu pregunta y valora la experiencia de cada conferencia.</p><Link className="primary" href="/preguntas">Ir al espacio de preguntas</Link></article>
+        : modules.questions.preview && <LockedModule kicker="PARTICIPACIÓN EN VIVO" title="Preguntas a conferencistas"><p>Durante la jornada podrás enviar preguntas a la persona que expone y valorar cada conferencia. Si eres ponente, aquí recibirás las preguntas de tu conferencia.</p></LockedModule>}
+      {modules.materials.enabled ? <EventMaterials /> : modules.materials.preview && <LockedModule kicker="MATERIALES DEL ENCUENTRO" title="Materiales de las conferencias"><p>Cada ponente comparte aquí su material. Se libera al terminar su conferencia, solo para quienes tengan la asistencia verificada.</p></LockedModule>}
+      {modules.library.enabled ? <CommunityLibrary /> : modules.library.preview && <LockedModule kicker="BIBLIOTECA DE LA COMUNIDAD" title="Recursos compartidos"><p>Un espacio para consultar y aportar recursos clínicos revisados por la organización.</p></LockedModule>}
       <ProfessionalNetworkEditor initialOptIn={Boolean(profile?.professional_network_opt_in)} initialDirectory={directory ?? null} />
     </section>
   </main>;

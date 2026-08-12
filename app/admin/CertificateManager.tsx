@@ -1,10 +1,9 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
-import { DEFAULT_CERTIFICATE_SETTINGS, type CertificateSettings } from "../../lib/certificate-template";
+import { CERTIFICATE_TYPES, CERTIFICATE_TYPE_LABELS, DEFAULT_CERTIFICATE_SETTINGS, type CertificateSettings, type CertificateType } from "../../lib/certificate-template";
 
 type Settings = Required<CertificateSettings>;
-type CertificateType = "professional" | "general";
 type BusyAction = "upload" | "save" | "generate" | null;
 const DIRECT_UPLOAD_LIMIT = 3.5 * 1024 * 1024;
 const MAX_SPONSOR_LOGOS = 3;
@@ -187,14 +186,16 @@ export default function CertificateManager() {
   }
 
   async function generate() {
-    if (!window.confirm("Se emitirán diplomas para todos los participantes confirmados y quedarán disponibles en sus cuentas. ¿Continuar?")) return;
+    if (!window.confirm("Se emitirán diplomas para todas las personas con asistencia verificada, cada una con el modelo que corresponde a su función. ¿Continuar?")) return;
     setBusyAction("generate");
     setMessage("");
     try {
       const { response, data } = await requestJson("/api/admin/certificates/generate", { method: "POST" }, 45_000);
       const generated = Number(data.generated ?? 0);
+      const byType = data.byType && typeof data.byType === "object" ? data.byType as Record<string, number> : {};
+      const detail = CERTIFICATE_TYPES.filter(type => byType[type]).map(type => `${byType[type]} ${CERTIFICATE_TYPE_LABELS[type].toLowerCase()}`).join(" · ");
       setMessage(response.ok
-        ? `${generated} diploma${generated === 1 ? "" : "s"} emitido${generated === 1 ? "" : "s"}.`
+        ? `${generated} diploma${generated === 1 ? "" : "s"} emitido${generated === 1 ? "" : "s"}.${detail ? ` ${detail}.` : ""}`
         : String(data.error ?? "No se pudieron emitir los diplomas."));
     } catch (error) {
       setMessage(requestError(error, "No se pudieron emitir los diplomas. Inténtalo de nuevo."));
@@ -240,8 +241,8 @@ export default function CertificateManager() {
     <div className="admin-content certificate-manager">
       <div className="panel">
         <p className="admin-kicker">DIPLOMAS DE PARTICIPACIÓN</p>
-        <h2>Un modelo elegante, dos tipos de diploma.</h2>
-        <p>Los participantes profesionales recibirán el título profesional; los demás recibirán el diploma general. Configura y revisa ambos modelos antes de emitirlos.</p>
+        <h2>Un modelo elegante, cuatro tipos de diploma.</h2>
+        <p>Cada persona recibe el diploma que corresponde a su función: ponentes y equipo organizador reciben su reconocimiento, los participantes profesionales el título profesional y el resto el diploma general. Al emitir se asignan todos de una sola vez según el rol registrado en cada inscripción.</p>
         <div className="certificate-manager-actions">
           <button className="secondary" onClick={() => setEditorOpen(true)}>Editar modelo y firmas</button>
           <button className="secondary certificate-preview-trigger" onClick={() => void showPreview()}>Previsualizar certificados</button>
@@ -265,6 +266,10 @@ export default function CertificateManager() {
               <label>Título para participantes generales<input value={settings.general_title} onChange={event => setSettings({ ...settings, general_title: event.target.value })} /></label>
               <label className="wide">Texto para profesionales<textarea rows={3} value={settings.professional_body} onChange={event => setSettings({ ...settings, professional_body: event.target.value })} /></label>
               <label className="wide">Texto para participantes generales<textarea rows={3} value={settings.general_body} onChange={event => setSettings({ ...settings, general_body: event.target.value })} /></label>
+              <label>Título para ponentes<input value={settings.speaker_title} onChange={event => setSettings({ ...settings, speaker_title: event.target.value })} /></label>
+              <label>Título para el equipo organizador<input value={settings.organizer_title} onChange={event => setSettings({ ...settings, organizer_title: event.target.value })} /></label>
+              <label className="wide">Texto para ponentes<textarea rows={3} value={settings.speaker_body} onChange={event => setSettings({ ...settings, speaker_body: event.target.value })} /></label>
+              <label className="wide">Texto para el equipo organizador<textarea rows={3} value={settings.organizer_body} onChange={event => setSettings({ ...settings, organizer_body: event.target.value })} /></label>
             </div>
 
             <div className="certificate-signatures">
@@ -320,13 +325,12 @@ export default function CertificateManager() {
                 <p className="section-kicker">VISTA PREVIA</p>
                 <h2 id="certificate-preview-title">Así quedará el certificado</h2>
               </div>
-              <p>Revisa el texto, las firmas y los logos en ambos tipos antes de emitir.</p>
+              <p>Revisa el texto, las firmas y los logos en los cuatro tipos antes de emitir.</p>
             </header>
 
             <div className="certificate-preview-toolbar">
               <div className="certificate-type-tabs" role="tablist" aria-label="Tipo de certificado">
-                <button role="tab" aria-selected={previewType === "professional"} className={previewType === "professional" ? "selected" : ""} onClick={() => void renderPreview("professional")}>Profesional</button>
-                <button role="tab" aria-selected={previewType === "general"} className={previewType === "general" ? "selected" : ""} onClick={() => void renderPreview("general")}>General</button>
+                {CERTIFICATE_TYPES.map(type => <button key={type} role="tab" aria-selected={previewType === type} className={previewType === type ? "selected" : ""} onClick={() => void renderPreview(type)}>{CERTIFICATE_TYPE_LABELS[type]}</button>)}
               </div>
               <label>Nombre de muestra<input value={sampleName} maxLength={160} onChange={event => setSampleName(event.target.value)} /></label>
               <button className="secondary" disabled={previewLoading} onClick={() => void renderPreview()}>{previewLoading ? "Actualizando…" : "Actualizar vista"}</button>
@@ -336,7 +340,7 @@ export default function CertificateManager() {
             {previewError && <p className="certificate-preview-error" role="alert">{previewError}</p>}
             <div className={`certificate-preview-stage${previewLoading ? " loading" : ""}`} aria-busy={previewLoading}>
               {previewLoading && <div className="certificate-preview-loading" role="status">Preparando el certificado…</div>}
-              {previewHtml && <iframe title={`Vista previa del certificado ${previewType === "professional" ? "profesional" : "general"}`} srcDoc={previewHtml} />}
+              {previewHtml && <iframe title={`Vista previa del certificado: ${CERTIFICATE_TYPE_LABELS[previewType]}`} srcDoc={previewHtml} />}
             </div>
 
             <div className="community-modal-actions certificate-preview-actions">
