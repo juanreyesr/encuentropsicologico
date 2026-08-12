@@ -6,7 +6,7 @@ import { CERTIFICATE_TYPES, CERTIFICATE_TYPE_LABELS, DEFAULT_CERTIFICATE_SETTING
 type Settings = Required<CertificateSettings>;
 type BusyAction = "upload" | "save" | "generate" | null;
 const DIRECT_UPLOAD_LIMIT = 3.5 * 1024 * 1024;
-const MAX_SPONSOR_LOGOS = 3;
+const MAX_SPONSOR_LOGOS = 4;
 
 function freshSettings(): Settings {
   return {
@@ -123,7 +123,7 @@ export default function CertificateManager() {
     const file = event.target.files?.[0];
     if (!file) return;
     if (type === "logo" && settings.sponsor_logos.length >= MAX_SPONSOR_LOGOS) {
-      setMessage("El diploma admite hasta 3 logos de patrocinadores.");
+      setMessage("El diploma admite hasta 4 logos de patrocinadores.");
       event.target.value = "";
       return;
     }
@@ -292,7 +292,7 @@ export default function CertificateManager() {
 
             <div className="certificate-logos">
               <h3>Patrocinadores</h3>
-              <p>Agrega hasta 3 logos para el pie del diploma. Cada uno se ajustará al mismo espacio, sin deformarse ni recortarse.</p>
+              <p>Agrega hasta 4 logos para el pie del diploma. Cada uno se ajustará al mismo espacio, sin deformarse ni recortarse.</p>
               <div>
                 {settings.sponsor_logos.map((url, index) => (
                   <figure key={`${url}-${index}`}>
@@ -302,7 +302,7 @@ export default function CertificateManager() {
                 ))}
                 {settings.sponsor_logos.length < MAX_SPONSOR_LOGOS && <label className="certificate-logo-upload"><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "logo")} /><strong>{busyAction === "upload" ? "Cargando imagen…" : "Agregar logo"}</strong><small>{settings.sponsor_logos.length} de {MAX_SPONSOR_LOGOS} logos · PNG, JPG o WebP</small></label>}
               </div>
-              {settings.sponsor_logos.length === MAX_SPONSOR_LOGOS && <small className="certificate-logo-limit">Ya agregaste los 3 logos. Puedes quitar uno para reemplazarlo.</small>}
+              {settings.sponsor_logos.length === MAX_SPONSOR_LOGOS && <small className="certificate-logo-limit">Ya agregaste los 4 logos. Puedes quitar uno para reemplazarlo.</small>}
             </div>
 
             {message && <p className={isErrorMessage(message) ? "community-error" : "community-success"} role="status">{message}</p>}
