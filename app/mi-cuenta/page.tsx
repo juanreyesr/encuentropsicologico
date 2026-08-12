@@ -10,6 +10,7 @@ import ModalitySwitcher from "./ModalitySwitcher";
 import EventMaterials from "./EventMaterials";
 import LockedModule from "./LockedModule";
 import SpeakerAssignmentCard, { type SpeakerAssignment } from "./SpeakerAssignment";
+import LiveBox from "../LiveBox";
 import { accountModules, loadEventControls } from "../../lib/event-controls";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +71,7 @@ export default async function AccountPage() {
         <article><span>INSCRIPCIÓN</span><h2>{activeRegistration ? "Confirmada" : "Pendiente"}</h2>{activeRegistration && <><p>{activeRegistration.modality === "presencial" ? "Presencial" : "Virtual"} · {activeRegistration.status === "waitlist" ? "Lista de espera" : "Confirmada"}</p><ModalitySwitcher current={activeRegistration.modality as "presencial" | "virtual"} /></>}</article>
         <article><span>CONSTANCIA</span><h2>{certificate?.attendance_confirmed && modules.certificates.enabled ? "Disponible" : "Se habilitará después del evento"}</h2><p>{modules.certificates.enabled ? "La asistencia debe ser confirmada por la organización." : "La descarga de diplomas está cerrada por la organización en este momento."}</p>{certificate?.attendance_confirmed && modules.certificates.enabled && <a className="primary" href="/api/account/certificate">Descargar constancia</a>}</article>
       </div>
+      <LiveBox />
       <AttendanceVerifier isOrganizer={isOrganizer} />
       {speakerRegistration && <SpeakerAssignmentCard assignment={speakerAssignment} />}
       {modules.questions.enabled

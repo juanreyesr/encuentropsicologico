@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import type { EventProgramItem, EventSpeaker } from "../lib/event";
 import { DEFAULT_PROGRAM, EVENT_START, programTimeLabel } from "../lib/event";
+import LiveBox from "./LiveBox";
 
 const guatemalaDepartments = [
   "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Guatemala", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa",
@@ -259,7 +260,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="transmision" className="live-banner section-pad"><div className="live-visual"><div className="play-lock">▶</div><span>TRANSMISIÓN PRIVADA</span></div><div><p className="section-kicker light">ENCUENTRO EN VIVO</p><h2>{siteContent.live ? <>La sala está<br /><em>lista para ti.</em></> : <>La sala se abrirá<br /><em>cuando sea el momento.</em></>}</h2><p>{siteContent.live ? "Ingresa desde tu cuenta para ver la transmisión, participar en las preguntas y acceder a los recursos del encuentro." : "El acceso aparecerá aquí cuando el equipo organizador active la transmisión."}</p>{siteContent.live ? <Link className="secondary light-btn" href="/transmision">Unirme al encuentro →</Link> : <button disabled className="secondary light-btn">Aún no disponible · 🔒</button>}</div></section>
+      <section id="transmision" className="live-banner section-pad"><LiveBox fallback={<div className="live-visual"><div className="play-lock">▶</div><span>TRANSMISIÓN PRIVADA</span></div>} /><div><p className="section-kicker light">ENCUENTRO EN VIVO</p><h2>{siteContent.live ? <>La sala está<br /><em>lista para ti.</em></> : <>La sala se abrirá<br /><em>cuando sea el momento.</em></>}</h2><p>{siteContent.live ? "Ingresa desde tu cuenta para ver la transmisión, participar en las preguntas y acceder a los recursos del encuentro." : "El acceso aparecerá aquí cuando el equipo organizador active la transmisión."}</p>{siteContent.live ? <Link className="secondary light-btn" href="/transmision">Unirme al encuentro →</Link> : <button disabled className="secondary light-btn">Aún no disponible · 🔒</button>}</div></section>
 
       <section id="recursos" className="resources section-pad">
         <div className="section-head"><div><p className="section-kicker">BIBLIOTECA DEL ENCUENTRO</p><h2>Para seguir<br /><em>profundizando.</em></h2></div><p className="side-copy dark-copy">Materiales seleccionados por el comité académico. Algunos recursos se habilitarán durante el evento.</p></div>
