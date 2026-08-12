@@ -50,3 +50,29 @@ export const DEFAULT_PROGRAM: EventProgramItem[] = [
 export function programTimeLabel(item: Pick<EventProgramItem, "start_time" | "end_time">) {
   return item.start_time && item.end_time ? `${item.start_time}–${item.end_time}` : item.start_time || item.end_time || "Horario pendiente";
 }
+
+/**
+ * Acepta los formatos que la organización suele copiar de YouTube: enlace
+ * normal, youtu.be, /live y /embed, con o sin parámetros añadidos.
+ */
+export function youtubeVideoId(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw.startsWith("http") ? raw : `https://${raw}`);
+    const host = url.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") return url.pathname.split("/").filter(Boolean)[0] ?? null;
+    if (host !== "youtube.com" && host !== "m.youtube.com" && host !== "youtube-nocookie.com") return null;
+    const fromQuery = url.searchParams.get("v");
+    if (fromQuery) return fromQuery;
+    const parts = url.pathname.split("/").filter(Boolean);
+    const index = parts.findIndex(part => ["live", "embed", "shorts", "v"].includes(part));
+    return index >= 0 ? parts[index + 1] ?? null : null;
+  } catch {
+    return null;
+  }
+}
+
+export function youtubeEmbedUrl(videoId: string, options: { autoplay?: boolean } = {}) {
+  return `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?rel=0&autoplay=${options.autoplay ? 1 : 0}`;
+}

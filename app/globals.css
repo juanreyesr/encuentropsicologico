@@ -193,3 +193,32 @@
 .favorite-check{display:flex;align-items:center;gap:.5rem;font-size:.7rem;white-space:nowrap}
 
 @media(max-width:900px){.ratings-hero{grid-template-columns:1fr}.ratings-speaker-list{grid-template-columns:1fr}.admin-columns.two{grid-template-columns:1fr}}
+
+/* Cuadro compacto de la transmisión: portada (con sesión) y cuenta del participante. */
+.live-box{background:linear-gradient(160deg,#12143a,#221f52);border:1px solid rgba(215,169,109,.28);padding:1rem;display:grid;gap:.75rem;color:#fff;max-width:520px;width:100%}
+.live-box header{display:flex;align-items:center;gap:.5rem;font-size:.58rem;letter-spacing:.16em;color:#e2b978}
+.live-box header b{margin-left:.35rem;font-size:.72rem;letter-spacing:normal;color:#fff;font-weight:400;font-family:Georgia,serif}
+.live-dot{width:9px;height:9px;border-radius:50%;background:#e0473f;box-shadow:0 0 0 0 rgba(224,71,63,.7);animation:live-pulse 1.8s infinite}
+@keyframes live-pulse{70%{box-shadow:0 0 0 9px rgba(224,71,63,0)}100%{box-shadow:0 0 0 0 rgba(224,71,63,0)}}
+.live-box-frame{position:relative;padding-top:56.25%;background:#000;overflow:hidden}
+.live-box-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.live-box footer{display:flex;flex-wrap:wrap;gap:.5rem 1.2rem}
+.live-box footer a{font-size:.68rem;color:#e2b978;border-bottom:1px solid rgba(226,185,120,.45);padding-bottom:.15rem}
+.account-page .live-box{margin:1.5rem 0}
+@media(prefers-reduced-motion:reduce){.live-dot{animation:none}}
+
+/* Editor de transmisión del panel: campos legibles y verificación del enlace. */
+.transmission-editor{max-width:760px}
+.transmission-fields{display:grid;gap:1.3rem;margin:1.5rem 0}
+.transmission-editor label:not(.live-toggle){display:grid;gap:.4rem;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:#4f4d5c;font-weight:700}
+.transmission-editor label:not(.live-toggle) input{display:block;width:100%;padding:.9rem;border:1px solid #d1cec7;background:#faf9f6;font:inherit;text-transform:none;letter-spacing:normal}
+.transmission-editor label:not(.live-toggle) small{font-size:.62rem;text-transform:none;letter-spacing:normal;color:#8a8697;font-weight:400;line-height:1.5}
+.transmission-check{margin:0;padding:.7rem .9rem;font-size:.7rem;border-left:3px solid}
+.transmission-check.ok{background:#eef4ef;border-color:#3f7c55;color:#2f6446}
+.transmission-check.bad{background:#fcefee;border-color:#b7423a;color:#8f342e}
+.transmission-check code{font-size:.68rem}
+.transmission-preview{display:grid;gap:.5rem;margin-bottom:1.4rem}
+.transmission-preview>span{font-size:.55rem;letter-spacing:.15em;color:#8a7a4f}
+.transmission-preview .live-box-frame{max-width:420px}
+.transmission-preview small{font-size:.62rem;color:#8a8697}
+.transmission-editor .admin-note{margin-top:1.2rem}
