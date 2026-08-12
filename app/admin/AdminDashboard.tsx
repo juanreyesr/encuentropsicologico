@@ -14,7 +14,7 @@ type DashboardData = {
   daysRemaining: number;
   metrics: { total: number; presencial: number; virtual: number; waitlist: number; available: number; capacity: number; students?: number; professionals?: number; networkOptIns?: number; sharedDirectory?: number; guatemala?: number; speakers?: number; organizers?: number };
   recent: Array<{ id: number; name: string; modality: string; status: string; created_at: string }>;
-  problems: { open: number; recent: Array<{ id: number; phone: string; problem: string; status: string; created_at: string }> };
+  problems: { open: number; recent: Array<{ id: number; phone: string; problem: string; status: string; created_at: string; resolved_at?: string | null }> };
   professionalNetwork: {
     optIns: Array<{ id: number; name: string; modality: string; status: string; created_at: string }>;
     shared: Array<{ user_id: string; name: string; participant_email: string | null; phone: string | null; share_enabled: boolean; profession: string | null; specialty: string | null; address: string | null; email: string | null; whatsapp: string | null; website: string | null; instagram: string | null; updated_at: string }>;
@@ -248,6 +248,25 @@ export default function AdminDashboard({ userName }: { userName: string }) {
     flash("Inscripción borrada del evento.");
   }
 
+  async function updateSupportIssue(id: number, status: "open" | "resolved") {
+    setSaving(true);
+    const response = await fetch("/api/admin/support-problems", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, status }) });
+    setSaving(false);
+    if (!response.ok) { flash("No se pudo actualizar el reporte."); return; }
+    await loadAll();
+    flash(status === "resolved" ? "Reporte marcado como atendido." : "Reporte reabierto.");
+  }
+
+  async function removeSupportIssue(id: number) {
+    if (!window.confirm("¿Borrar este reporte? Se eliminará del historial.")) return;
+    setSaving(true);
+    const response = await fetch(`/api/admin/support-problems?id=${id}`, { method: "DELETE" });
+    setSaving(false);
+    if (!response.ok) { flash("No se pudo borrar el reporte."); return; }
+    await loadAll();
+    flash("Reporte borrado.");
+  }
+
   async function moderateCommunityResource(id: number, status: "approved" | "rejected") {
     const reason = status === "rejected" ? window.prompt("Indica brevemente por qué no se aprobará este recurso:") : "";
     if (status === "rejected" && reason === null) return;
@@ -342,7 +361,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
         <article className="panel network-panel"><div className="panel-title"><h3>Interesados en la red</h3><span>{dashboard.professionalNetwork.optIns.length}</span></div>{dashboard.professionalNetwork.optIns.length === 0 ? <div className="admin-empty"><b>Nadie ha marcado la red profesional aún.</b><p>El listado se llenará con participantes que marquen esa opción.</p></div> : dashboard.professionalNetwork.optIns.map(item => <div className="activity" key={item.id}><span>♢</span><p>{item.name}<small>{item.modality === "presencial" ? "Presencial" : "Virtual"} · {item.status === "waitlist" ? "Lista de espera" : "Confirmada"} · {new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.created_at))}</small></p></div>)}</article>
       </div>}
 
-      {active === "Problemas" && <div className="admin-content"><article className="panel support-panel"><div className="panel-title"><h3>Problemas de acceso</h3><span className={dashboard.problems.open > 0 ? "problem-count has-problems" : "problem-count"}>{dashboard.problems.open} abiertos</span></div>{dashboard.problems.recent.length === 0 ? <div className="admin-empty"><b>No hay problemas reportados.</b><p>Cuando un participante indique que no puede iniciar sesión, aparecerá aquí.</p></div> : dashboard.problems.recent.map(problem => <div className={`support-issue ${problem.status === "open" ? "open" : ""}`} key={problem.id}><div><b>{problem.phone}</b><small>{new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(problem.created_at))}</small></div><p>{problem.problem}</p><span>{problem.status === "open" ? "Pendiente" : "Resuelto"}</span></div>)}</article></div>}
+      {active === "Problemas" && <div className="admin-content"><article className="panel support-panel"><div className="panel-title"><h3>Problemas de acceso</h3><span className={dashboard.problems.open > 0 ? "problem-count has-problems" : "problem-count"}>{dashboard.problems.open} abiertos</span></div>{dashboard.problems.recent.length === 0 ? <div className="admin-empty"><b>No hay problemas reportados.</b><p>Cuando un participante indique que no puede iniciar sesión, aparecerá aquí.</p></div> : dashboard.problems.recent.map(problem => <div className={`support-issue ${problem.status === "open" ? "open" : ""}`} key={problem.id}><div><b>{problem.phone}</b><small>{new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(problem.created_at))}</small>{problem.resolved_at && <small>Atendido el {new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(problem.resolved_at))}</small>}</div><p>{problem.problem}</p><div className="support-issue-actions"><span>{problem.status === "open" ? "Pendiente" : "Resuelto"}</span>{problem.status === "open" ? <button type="button" className="approve" disabled={saving} onClick={() => updateSupportIssue(problem.id, "resolved")}>Marcar como atendido</button> : <button type="button" className="secondary" disabled={saving} onClick={() => updateSupportIssue(problem.id, "open")}>Reabrir</button>}<button type="button" className="danger-link" disabled={saving} onClick={() => removeSupportIssue(problem.id)}>Borrar</button></div></div>)}</article></div>}
 
       {active === "Transmisión" && <div className="admin-content"><div className="panel transmission-editor"><p className="admin-kicker">CONTROL DE ACCESO</p><h2>Transmisión en vivo</h2><p>Pega un enlace de YouTube. Al activarla, solo participantes con cuenta podrán verla dentro de esta plataforma.</p><div className="speaker-form-grid"><label className="wide">Nombre de la transmisión<input value={content.liveTitle} placeholder="Ej. Jornada Clínica en vivo" onChange={event => setContent({ ...content, liveTitle: event.target.value })} /></label><label className="wide">Enlace de YouTube<input type="url" value={content.liveUrl} placeholder="https://www.youtube.com/watch?v=..." onChange={event => setContent({ ...content, liveUrl: event.target.value })} /><small>Admite enlaces youtube.com, youtu.be o youtube.com/live.</small></label></div><label className="live-toggle large"><div><b>Mostrar transmisión</b><small>{content.live ? "Visible para participantes registrados" : "Aún no disponible"}</small></div><input type="checkbox" checked={content.live} onChange={event => setContent({ ...content, live: event.target.checked })} /><i /></label></div></div>}
       {active === "Biblioteca" && <div className="admin-content">
