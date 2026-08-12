@@ -13,11 +13,3 @@ export async function GET() {
   const average = (key: "speaker_rating" | "event_rating") => questions.length ? Math.round((questions.reduce((total, item) => total + item[key], 0) / questions.length) * 10) / 10 : null;
   return Response.json({ settings: settings ?? { questions_enabled: false }, metrics: { total: questions.length, favorites: questions.filter(item => item.is_favorite).length, speakerRating: average("speaker_rating"), eventRating: average("event_rating") } });
 }
-
-export async function PATCH(request: Request) {
-  if (!await isEventAdmin()) return Response.json({ error: "No autorizado" }, { status: 401 });
-  const { questionsEnabled } = await request.json() as { questionsEnabled?: boolean };
-  const response = await supabaseServerFetch("encuentro_psicologico_event_settings?id=eq.true", { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ questions_enabled: Boolean(questionsEnabled), updated_at: new Date().toISOString() }) });
-  if (!response.ok) return Response.json({ error: "No se pudo actualizar el acceso a preguntas." }, { status: 503 });
-  return Response.json({ settings: (await response.json())[0] });
-}

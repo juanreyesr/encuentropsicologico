@@ -3,14 +3,14 @@ import { EVENT_CAPACITY, eventDaysRemaining } from "../../../../lib/event";
 import { supabaseServerFetch } from "../../../../lib/supabase-server";
 
 type Registration = { id: number; user_id?: string | null; name: string; email?: string | null; phone?: string | null; modality: string; status: string; created_at: string; attendee_type?: string | null; profession?: string | null; country?: string | null; department?: string | null; gender?: string | null; event_roles?: string[] | null; professional_network_opt_in?: boolean };
-type SupportIssue = { id: number; phone: string; problem: string; status: string; created_at: string };
+type SupportIssue = { id: number; phone: string; problem: string; status: string; created_at: string; resolved_at: string | null };
 type ProfessionalDirectory = { user_id: string; share_enabled: boolean; profession: string | null; specialty: string | null; address: string | null; email: string | null; whatsapp: string | null; website: string | null; instagram: string | null; updated_at: string };
 
 export async function GET() {
   if (!await isEventAdmin()) return Response.json({ error: "No autorizado" }, { status: 401 });
   const [response, issuesResponse, directoryResponse] = await Promise.all([
     supabaseServerFetch("encuentro_psicologico_registrations?select=id,user_id,name,email,phone,modality,status,attendee_type,profession,country,department,gender,event_roles,professional_network_opt_in,created_at&order=created_at.desc"),
-    supabaseServerFetch("encuentro_psicologico_support_issues?select=id,phone,problem,status,created_at&order=created_at.desc"),
+    supabaseServerFetch("encuentro_psicologico_support_issues?select=id,phone,problem,status,created_at,resolved_at&order=status.asc,created_at.desc"),
     supabaseServerFetch("encuentro_psicologico_professional_directory?select=user_id,share_enabled,profession,specialty,address,email,whatsapp,website,instagram,updated_at&order=updated_at.desc"),
   ]);
   if (!response.ok) return Response.json({ error: "No se pudieron cargar las inscripciones." }, { status: 503 });

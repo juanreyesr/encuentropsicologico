@@ -8,6 +8,7 @@ import {
   speakerMaterialReleaseAt,
   speakerMaterialStorageFetch,
 } from "../../../../lib/event-materials";
+import { loadEventControls } from "../../../../lib/event-controls";
 import { supabaseServerFetch } from "../../../../lib/supabase-server";
 
 type Registration = {
@@ -65,10 +66,12 @@ export async function GET() {
   const context = await accountContext();
   if (!context) return Response.json({ error: "Inicia sesión como participante para acceder a los materiales." }, { status: 401, headers: PRIVATE_RESPONSE });
 
-  const [programResponse, materialsResponse] = await Promise.all([
+  const [controls, programResponse, materialsResponse] = await Promise.all([
+    loadEventControls(),
     supabaseServerFetch("encuentro_psicologico_program?select=id,title,start_time,end_time,display_order&is_published=eq.true&order=display_order.asc"),
     supabaseServerFetch("encuentro_psicologico_speaker_materials?select=id,owner_user_id,program_item_id,title,description,storage_path,original_filename,mime_type,size_bytes,created_at,updated_at&order=created_at.asc"),
   ]);
+  if (controls.materialsMode === "closed" && !context.isAdmin) return Response.json({ error: "Los materiales están suspendidos por la organización en este momento." }, { status: 403, headers: PRIVATE_RESPONSE });
   if (!programResponse.ok || !materialsResponse.ok) return Response.json({ error: "No se pudieron cargar los materiales del encuentro." }, { status: 503, headers: PRIVATE_RESPONSE });
 
   const program = await programResponse.json() as ProgramItem[];
@@ -81,7 +84,8 @@ export async function GET() {
   const talks = program.map(item => {
     const talkMaterials = materials.filter(material => material.program_item_id === item.id);
     const releaseAt = speakerMaterialReleaseAt(item.end_time);
-    const available = attendanceConfirmed && now >= releaseAt.getTime();
+    // "Abierto ahora" adelanta la entrega automática cuando la organización lo decide.
+    const available = attendanceConfirmed && (controls.materialsMode === "open" || now >= releaseAt.getTime());
     return {
       id: item.id,
       title: item.title,

@@ -1,5 +1,6 @@
 import { currentUser } from "../../../../../lib/auth";
 import { COMMUNITY_BUCKET, communityStorageFetch } from "../../../../../lib/community-resources";
+import { loadEventControls } from "../../../../../lib/event-controls";
 import { supabaseServerFetch } from "../../../../../lib/supabase-server";
 
 type Resource = { id: number; owner_user_id: string; storage_path: string; original_filename: string; mime_type: string; status: string };
@@ -15,6 +16,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const [resource] = response.ok ? await response.json() as Resource[] : [];
   const isAdmin = user.app_metadata?.encuentro_psicologico_role === "admin";
   if (!resource || (resource.status !== "approved" && !isAdmin)) return Response.json({ error: "Este recurso no está disponible." }, { status: 404 });
+  if (!isAdmin && !(await loadEventControls()).libraryEnabled) return Response.json({ error: "La biblioteca de la comunidad está suspendida por la organización." }, { status: 403 });
 
   if (!isAdmin && resource.owner_user_id !== user.id) {
     await supabaseServerFetch("encuentro_psicologico_community_downloads?on_conflict=resource_id,downloader_user_id", {

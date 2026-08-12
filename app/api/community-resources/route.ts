@@ -1,10 +1,18 @@
-import { currentUser } from "../../../lib/auth";
+import { currentUser, type AuthUser } from "../../../lib/auth";
 import { COMMUNITY_ALLOWED_FILES, COMMUNITY_BUCKET, COMMUNITY_MAX_FILE_SIZE, communityStorageFetch, safeCommunityFilename, slugifyCommunityCategory } from "../../../lib/community-resources";
+import { loadEventControls } from "../../../lib/event-controls";
 import { supabaseServerFetch } from "../../../lib/supabase-server";
 import { randomUUID } from "crypto";
 
 type Category = { id: number; name: string; slug: string; is_default: boolean };
 type Resource = { id: number; owner_user_id: string; category_id: number; title: string; description: string | null; source_author: string | null; rights_basis: string; original_filename: string; mime_type: string; size_bytes: number; status: string; moderation_reason: string | null; created_at: string };
+
+// La biblioteca puede suspenderse desde el centro de control; la organización
+// mantiene siempre su acceso administrativo.
+async function libraryOpenFor(user: AuthUser) {
+  if (user.app_metadata?.encuentro_psicologico_role === "admin") return true;
+  return (await loadEventControls()).libraryEnabled;
+}
 
 async function communityUser() {
   const user = await currentUser({ refresh: false });
@@ -22,6 +30,7 @@ function contentRangeTotal(response: Response) {
 export async function GET() {
   const user = await communityUser();
   if (!user) return Response.json({ error: "Debes iniciar sesión como participante." }, { status: 401 });
+  if (!await libraryOpenFor(user)) return Response.json({ error: "La biblioteca de la comunidad está suspendida por la organización." }, { status: 403 });
 
   const [categoryResponse, resourceResponse, ownResponse, rewardResponse] = await Promise.all([
     supabaseServerFetch("encuentro_psicologico_community_categories?select=id,name,slug,is_default&is_active=eq.true&order=is_default.desc,name.asc"),
@@ -65,6 +74,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await communityUser();
   if (!user) return Response.json({ error: "Debes iniciar sesión como participante." }, { status: 401 });
+  if (!await libraryOpenFor(user)) return Response.json({ error: "La biblioteca de la comunidad está suspendida por la organización." }, { status: 403 });
   const form = await request.formData();
   const file = form.get("file");
   const title = String(form.get("title") ?? "").trim();
