@@ -16,6 +16,18 @@ export const CERTIFICATE_TYPE_LABELS: Record<CertificateType, string> = {
   organizer: "Organización",
 };
 
+/**
+ * Las firmas laterales conservan su posición histórica (0 y 1) y la central se
+ * guarda al final, de modo que los modelos ya guardados siguen intactos.
+ */
+export const SIGNATURE_SLOTS = [
+  { index: 0, key: "left", label: "Firma izquierda" },
+  { index: 2, key: "center", label: "Firma central" },
+  { index: 1, key: "right", label: "Firma derecha" },
+] as const;
+
+export const SIGNATURE_DISPLAY_ORDER = SIGNATURE_SLOTS.map(slot => slot.index);
+
 export function certificateType(value: unknown): CertificateType {
   return CERTIFICATE_TYPES.includes(value as CertificateType) ? value as CertificateType : "general";
 }
@@ -48,7 +60,7 @@ export const DEFAULT_CERTIFICATE_SETTINGS: Required<CertificateSettings> = {
   general_body: "Por su valiosa participación en la jornada clínica.",
   speaker_body: "Por compartir su experiencia clínica como ponente de la jornada y aportar al crecimiento profesional de la comunidad.",
   organizer_body: "Por su dedicación y trabajo en la organización de la jornada clínica, que hizo posible este encuentro.",
-  signatures: [{ name: "", role: "", image_url: "" }, { name: "", role: "", image_url: "" }],
+  signatures: [{ name: "", role: "", image_url: "" }, { name: "", role: "", image_url: "" }, { name: "", role: "", image_url: "" }],
   sponsor_logos: [],
 };
 
@@ -58,8 +70,8 @@ function cleanString(value: unknown, max = 500) {
 
 export function normalizeCertificateSettings(value: unknown): Required<CertificateSettings> {
   const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  const signatureInput = Array.isArray(source.signatures) ? source.signatures.slice(0, 2) : [];
-  const signatures = [0, 1].map(index => {
+  const signatureInput = Array.isArray(source.signatures) ? source.signatures.slice(0, SIGNATURE_SLOTS.length) : [];
+  const signatures = SIGNATURE_SLOTS.map((_, index) => {
     const item = signatureInput[index] && typeof signatureInput[index] === "object" ? signatureInput[index] as Record<string, unknown> : {};
     return { name: cleanString(item.name, 100), role: cleanString(item.role, 100), image_url: cleanString(item.image_url, 800) };
   });
@@ -102,7 +114,12 @@ export function buildCertificateHtml({
   const bodies: Record<CertificateType, string> = { professional: template.professional_body, general: template.general_body, speaker: template.speaker_body, organizer: template.organizer_body };
   const title = titles[certificateType(type)];
   const body = bodies[certificateType(type)];
-  const signatures = template.signatures.slice(0, 2);
+  // Se dibujan en el orden visual (izquierda, centro, derecha) y solo las que
+  // tengan contenido; si no hay ninguna, se conservan las dos líneas laterales
+  // de siempre para no alterar el diploma que ya existía.
+  const ordered = SIGNATURE_DISPLAY_ORDER.map(index => template.signatures[index] ?? { name: "", role: "", image_url: "" });
+  const filled = ordered.filter(signature => signature.name || signature.role || signature.image_url);
+  const signatures = filled.length ? filled : [template.signatures[0], template.signatures[1]];
   const logos = template.sponsor_logos.slice(0, MAX_SPONSOR_LOGOS);
   const signatureHtml = signatures.map(signature => `<div class="signature">${signature.image_url ? `<img src="${escapeHtml(signature.image_url)}" alt="Firma de ${escapeHtml(signature.name || "representante")}" />` : ""}<div class="line"></div><b>${escapeHtml(signature.name)}</b><small>${escapeHtml(signature.role)}</small></div>`).join("");
   const logosHtml = logos.length ? `<div class="logos">${logos.map(url => `<img src="${escapeHtml(url)}" alt="Logo de institución participante" />`).join("")}</div>` : "";
@@ -115,8 +132,8 @@ export function buildCertificateHtml({
 .frame{width:min(1120px,94vw);aspect-ratio:11/8.5;padding:clamp(26px,4vw,48px) clamp(34px,6vw,68px);border:2px solid #d6aa67;outline:10px solid #17284a;outline-offset:-22px;text-align:center;background:linear-gradient(135deg,#fffdf8,#f7f0df);overflow:hidden;display:grid;grid-template-rows:auto 1fr auto}
 .brand{display:flex;justify-content:center;align-items:center;gap:18px;color:#8b6417}.brand img{width:152px;height:152px;object-fit:contain}.brand p{margin:0;font-size:12px;font-weight:700;letter-spacing:.21em}.brand span{display:block;margin-top:5px;font:italic 13px Georgia,serif;color:#65527d}
 .certificate-core{align-self:center}.event{font:700 clamp(14px,1.65vw,19px) Georgia,serif;color:#17284a;margin:0 0 12px}.title{font:clamp(30px,4.3vw,48px) Georgia,serif;color:#17284a;margin:0}.lead{font-size:clamp(13px,1.5vw,17px);line-height:1.55;margin:clamp(14px,2.3vw,25px) auto 6px;max-width:760px;color:#4c5b74}.name{font:italic clamp(28px,3.8vw,42px) Georgia,serif;color:#b6802d;margin:clamp(11px,1.8vw,20px) auto;border-bottom:1px solid #d6aa67;padding:0 20px 10px;max-width:850px}.meta{font-size:clamp(12px,1.3vw,15px);color:#526078;margin:17px 0 0}.number{font-size:10px;letter-spacing:.13em;color:#8b6417;margin:8px 0 0}
-.certificate-footer{align-self:end;transform:translateY(-18px)}.signatures{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(42px,7vw,84px);margin:14px auto 15px;width:min(840px,88%)}.signature{min-height:108px;display:flex;flex-direction:column;justify-content:flex-end}.signature img{height:66px;max-width:230px;object-fit:contain;margin:0 auto -5px}.signature .line{border-top:1px solid #253555;margin-top:7px}.signature b{font-size:15px;margin-top:7px;color:#17284a}.signature small{font-size:11px;color:#655e73;margin-top:3px}.logos{display:flex;justify-content:center;align-items:center;gap:22px;min-height:68px}.logos img{width:148px;height:56px;object-fit:contain;filter:saturate(.9)}
+.certificate-footer{align-self:end;transform:translateY(-18px)}.signatures{display:grid;gap:clamp(42px,7vw,84px);margin:14px auto 15px;width:min(840px,88%)}.signature{min-height:108px;display:flex;flex-direction:column;justify-content:flex-end}.signature img{height:66px;max-width:230px;object-fit:contain;margin:0 auto -5px}.signature .line{border-top:1px solid #253555;margin-top:7px}.signature b{font-size:15px;margin-top:7px;color:#17284a}.signature small{font-size:11px;color:#655e73;margin-top:3px}.logos{display:flex;justify-content:center;align-items:center;gap:22px;min-height:68px}.logos img{width:148px;height:56px;object-fit:contain;filter:saturate(.9)}
 @media(max-width:640px){.diploma{padding:8px}.frame{outline-width:6px;outline-offset:-14px;padding:22px 26px}.brand img{width:96px;height:96px}.brand p{font-size:8px}.event{font-size:14px}.title{font-size:28px}.certificate-footer{transform:translateY(-8px)}.signatures{gap:24px;width:92%;margin-bottom:8px}.signature{min-height:72px}.signature img{height:42px}.signature b{font-size:11px}.signature small{font-size:8px}.logos{gap:7px;min-height:38px}.logos img{width:66px;height:26px}}
 @media print{html,body{width:11in;height:8.5in;background:#fff}.diploma{width:11in;height:8.5in;min-height:0;padding:.22in;background:#fff}.frame{width:100%;height:100%;aspect-ratio:auto;padding:.36in .58in;outline-offset:-.17in}.brand img{width:1.28in;height:1.28in}.brand p{font-size:10px}.brand span{font-size:10px}.event{font-size:16px}.title{font-size:38px}.lead{font-size:14px;margin-top:.15in}.name{font-size:34px;margin:.11in auto}.meta{font-size:12px;margin-top:.1in}.certificate-footer{transform:translateY(-.12in)}.signatures{margin:.12in auto .1in}.signature{min-height:.82in}.signature img{height:.52in}.signature b{font-size:12px}.signature small{font-size:10px}.logos{min-height:.5in;gap:.18in}.logos img{width:1.48in;height:.5in}}
-</style></head><body><main class="diploma"><section class="frame"><header class="brand"><img src="/logo-duelo-arbol-morado.png" alt="Logo del Encuentro Clínico de Psicología" /><div><p>ENCUENTRO CLÍNICO DE PSICOLOGÍA</p><span>Cuando el Duelo se Detiene</span></div></header><section class="certificate-core"><p class="event">${escapeHtml(template.event_name)}</p><h1 class="title">${escapeHtml(title)}</h1><p class="lead">Se otorga el presente diploma a</p><h2 class="name">${escapeHtml(fullName)}</h2><p class="lead">${escapeHtml(body)}</p><p class="meta">${escapeHtml(template.event_date)} · ${escapeHtml(template.event_place)}</p><p class="number">No. ${escapeHtml(certificateNumber)}</p></section><footer class="certificate-footer"><div class="signatures">${signatureHtml}</div>${logosHtml}</footer></section></main>${autoPrint ? "<script>window.addEventListener('load',()=>window.print())</script>" : ""}</body></html>`;
+</style></head><body><main class="diploma"><section class="frame"><header class="brand"><img src="/logo-duelo-arbol-morado.png" alt="Logo del Encuentro Clínico de Psicología" /><div><p>ENCUENTRO CLÍNICO DE PSICOLOGÍA</p><span>Cuando el Duelo se Detiene</span></div></header><section class="certificate-core"><p class="event">${escapeHtml(template.event_name)}</p><h1 class="title">${escapeHtml(title)}</h1><p class="lead">Se otorga el presente diploma a</p><h2 class="name">${escapeHtml(fullName)}</h2><p class="lead">${escapeHtml(body)}</p><p class="meta">${escapeHtml(template.event_date)} · ${escapeHtml(template.event_place)}</p><p class="number">No. ${escapeHtml(certificateNumber)}</p></section><footer class="certificate-footer"><div class="signatures" style="grid-template-columns:repeat(${signatures.length},minmax(0,1fr))">${signatureHtml}</div>${logosHtml}</footer></section></main>${autoPrint ? "<script>window.addEventListener('load',()=>window.print())</script>" : ""}</body></html>`;
 }

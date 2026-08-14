@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
-import { CERTIFICATE_TYPES, CERTIFICATE_TYPE_LABELS, DEFAULT_CERTIFICATE_SETTINGS, type CertificateSettings, type CertificateType } from "../../lib/certificate-template";
+import { CERTIFICATE_TYPES, CERTIFICATE_TYPE_LABELS, DEFAULT_CERTIFICATE_SETTINGS, SIGNATURE_SLOTS, type CertificateSettings, type CertificateType } from "../../lib/certificate-template";
 
 type Settings = Required<CertificateSettings>;
 type BusyAction = "upload" | "save" | "generate" | null;
@@ -22,7 +22,7 @@ function mergeSettings(saved: Partial<Settings>): Settings {
     ...fallback,
     ...saved,
     signatures: Array.isArray(saved.signatures)
-      ? [saved.signatures[0] ?? fallback.signatures[0], saved.signatures[1] ?? fallback.signatures[1]]
+      ? fallback.signatures.map((item, index) => saved.signatures?.[index] ?? item)
       : fallback.signatures,
     sponsor_logos: Array.isArray(saved.sponsor_logos) ? saved.sponsor_logos.slice(0, MAX_SPONSOR_LOGOS) : [],
   };
@@ -274,20 +274,26 @@ export default function CertificateManager() {
 
             <div className="certificate-signatures">
               <h3>Firmas</h3>
-              {settings.signatures.map((signature, index) => (
-                <article className="certificate-signature-card" key={index}>
+              <p className="certificate-signature-help">Aparecen en el diploma en este mismo orden. Deja vacía la que no uses: si solo llenas dos, el diploma se ve exactamente como hasta ahora.</p>
+              {SIGNATURE_SLOTS.map(slot => {
+                const index = slot.index;
+                const signature = settings.signatures[index] ?? { name: "", role: "", image_url: "" };
+                return (
+                <article className="certificate-signature-card" key={slot.key}>
                   <label className="certificate-file-control">
-                    <span className="certificate-file-preview">{signature.image_url ? <img src={signature.image_url} alt={`Vista previa de firma ${index + 1}`} /> : <b>Firma {index + 1}</b>}</span>
+                    <span className="certificate-file-preview">{signature.image_url ? <img src={signature.image_url} alt={`Vista previa de la ${slot.label.toLowerCase()}`} /> : <b>{slot.label}</b>}</span>
                     <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "signature", index)} />
                     <strong>{busyAction === "upload" ? "Cargando imagen…" : signature.image_url ? "Cambiar firma" : "Cargar firma"}</strong>
                     <small>PNG, JPG o WebP · máximo 10 MB</small>
                   </label>
                   <div className="certificate-signature-fields">
+                    <b className="certificate-signature-position">{slot.label}</b>
                     <label>Nombre<input value={signature.name} onChange={event => setSettings({ ...settings, signatures: settings.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item) })} /></label>
                     <label>Función<input value={signature.role} placeholder="Ej. Organizadora" onChange={event => setSettings({ ...settings, signatures: settings.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, role: event.target.value } : item) })} /></label>
                   </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
 
             <div className="certificate-logos">
