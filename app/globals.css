@@ -222,3 +222,24 @@
 .transmission-preview .live-box-frame{max-width:420px}
 .transmission-preview small{font-size:.62rem;color:#8a8697}
 .transmission-editor .admin-note{margin-top:1.2rem}
+
+/* Materiales de conferencias en el panel: control, descarga y carga por el ponente. */
+.materials-admin .panel{margin-top:1rem}
+.materials-form{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.2rem}
+.materials-form .wide{grid-column:1/-1}
+.materials-form label{display:grid;gap:.4rem;font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:#4f4d5c}
+.materials-form input:not([type=file]),.materials-form select,.materials-form textarea{width:100%;padding:.85rem;border:1px solid #d1cec7;background:#faf9f6;font:inherit;text-transform:none;letter-spacing:normal}
+.materials-form input[type=file]{font-size:.72rem;text-transform:none;letter-spacing:normal;font-weight:400}
+.materials-form small{font-size:.62rem;text-transform:none;letter-spacing:normal;color:#8a8697;font-weight:400}
+.materials-form>button{grid-column:1/-1;justify-self:start}
+.materials-form .community-error,.materials-form .community-success{grid-column:1/-1;margin:0}
+.materials-list{display:grid;gap:.7rem;margin-top:1rem}
+.materials-list article{display:flex;justify-content:space-between;align-items:flex-start;gap:1.2rem;flex-wrap:wrap;border:1px solid #ece8df;background:#fbfaf7;padding:1rem 1.1rem}
+.materials-list b{font:1rem Georgia;display:block}
+.materials-list small{display:block;color:#8a8697;font-size:.62rem;margin-top:.25rem}
+.materials-list p{margin:.5rem 0 0;color:#5f5c6b;font-size:.76rem;line-height:1.5}
+.materials-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.materials-actions a,.materials-actions button{font-size:.63rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;border:1px solid #c9c3b7;background:#fff;padding:.5rem .8rem;cursor:pointer;color:#3f3d4c}
+.materials-actions a{border-color:#25603f;background:#25603f;color:#fff}
+.materials-actions button:disabled{opacity:.55;cursor:default}
+@media(max-width:700px){.materials-form{grid-template-columns:1fr}.materials-form .wide{grid-column:auto}}
