@@ -2,7 +2,7 @@ import { isEventAdmin } from "../../../../lib/admin";
 import { normalizeCertificateSettings, type CertificateSettings } from "../../../../lib/certificate-template";
 import { supabaseServerFetch } from "../../../../lib/supabase-server";
 
-const fields = "event_name,event_date,event_place,professional_title,general_title,speaker_title,organizer_title,professional_body,general_body,speaker_body,organizer_body,signatures,sponsor_logos,updated_at";
+const fields = "event_name,event_date,event_place,professional_title,general_title,speaker_title,organizer_title,professional_body,general_body,speaker_body,organizer_body,signatures,sponsor_logos,seal_url,seal_enabled,updated_at";
 
 export async function GET() {
   if (!await isEventAdmin()) return Response.json({ error: "No autorizado" }, { status: 401 });
