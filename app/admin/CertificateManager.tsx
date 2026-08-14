@@ -119,7 +119,7 @@ export default function CertificateManager() {
     return () => window.removeEventListener("keydown", closeWithEscape);
   }, [editorOpen, previewOpen]);
 
-  async function upload(event: ChangeEvent<HTMLInputElement>, type: "signature" | "logo", index = 0) {
+  async function upload(event: ChangeEvent<HTMLInputElement>, type: "signature" | "logo" | "seal", index = 0) {
     const file = event.target.files?.[0];
     if (!file) return;
     if (type === "logo" && settings.sponsor_logos.length >= MAX_SPONSOR_LOGOS) {
@@ -146,7 +146,9 @@ export default function CertificateManager() {
           : String(data.error ?? "No se pudo cargar la imagen."));
         return;
       }
-      if (type === "signature") {
+      if (type === "seal") {
+        setSettings(current => ({ ...current, seal_url: data.url as string, seal_enabled: true }));
+      } else if (type === "signature") {
         setSettings(current => ({
           ...current,
           signatures: current.signatures.map((item, itemIndex) => itemIndex === index ? { ...item, image_url: data.url as string } : item),
@@ -154,7 +156,7 @@ export default function CertificateManager() {
       } else {
         setSettings(current => ({ ...current, sponsor_logos: [...current.sponsor_logos, data.url as string].slice(0, MAX_SPONSOR_LOGOS) }));
       }
-      setMessage(type === "signature" ? "Firma cargada. Guarda el modelo para conservarla." : "Logo cargado. Guarda el modelo para conservarlo.");
+      setMessage(type === "signature" ? "Firma cargada. Guarda el modelo para conservarla." : type === "seal" ? "Sello cargado y activado. Guarda el modelo para conservarlo." : "Logo cargado. Guarda el modelo para conservarlo.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : requestError(error, "No se pudo cargar la imagen. Comprueba tu conexión e inténtalo de nuevo."));
     } finally {
@@ -294,6 +296,24 @@ export default function CertificateManager() {
                 </article>
                 );
               })}
+            </div>
+
+            <div className="certificate-seal">
+              <h3>Sello de la firma central</h3>
+              <p>Se imprime sobre la firma del centro, ligeramente girado y fundido con el papel, como un sello real. Puedes activarlo o desactivarlo cuando quieras sin perder la imagen.</p>
+              <div className="certificate-seal-body">
+                <label className="certificate-file-control">
+                  <span className="certificate-file-preview seal">{settings.seal_url ? <img src={settings.seal_url} alt="Vista previa del sello" /> : <b>Sello</b>}</span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "seal")} />
+                  <strong>{busyAction === "upload" ? "Cargando imagen…" : settings.seal_url ? "Cambiar sello" : "Cargar sello"}</strong>
+                  <small>PNG con fondo blanco o transparente · máximo 10 MB</small>
+                </label>
+                <div>
+                  <label className="live-toggle"><div><b>{settings.seal_enabled ? "Sello activado" : "Sello desactivado"}</b><small>{settings.seal_enabled ? "Aparece en los diplomas que se emitan a partir de ahora." : "La imagen se conserva, pero no se imprime."}</small></div><input type="checkbox" disabled={!settings.seal_url} checked={settings.seal_enabled} onChange={event => setSettings({ ...settings, seal_enabled: event.target.checked })} /><i /></label>
+                  {!settings.seal_url && <small className="certificate-seal-hint">Carga primero la imagen del sello para poder activarlo.</small>}
+                  {settings.seal_url && <button type="button" className="danger-link" onClick={() => setSettings({ ...settings, seal_url: "", seal_enabled: false })}>Quitar la imagen del sello</button>}
+                </div>
+              </div>
             </div>
 
             <div className="certificate-logos">

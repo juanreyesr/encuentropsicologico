@@ -245,3 +245,13 @@
 @media(max-width:700px){.materials-form{grid-template-columns:1fr}.materials-form .wide{grid-column:auto}}
 .certificate-signature-help{font-size:.72rem;color:#6a6875;line-height:1.5;margin:.2rem 0 1rem}
 .certificate-signature-position{display:block;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:#8a6a2c;margin-bottom:.4rem}
+.certificate-seal{border-top:1px solid #ebe8e1;margin-top:1.4rem;padding-top:1.2rem}
+.certificate-seal h3{font:1rem Georgia;margin:0 0 .4rem}
+.certificate-seal>p{font-size:.72rem;color:#6a6875;line-height:1.5;margin:0 0 1rem}
+.certificate-seal-body{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:1.2rem;align-items:start}
+.certificate-file-preview.seal{min-height:96px;display:grid;place-items:center;background:#fbfaf7;border:1px dashed #cdc7ba;padding:.6rem}
+.certificate-file-preview.seal img{max-width:100%;max-height:88px;object-fit:contain}
+.certificate-seal-body .live-toggle{padding-top:0}
+.certificate-seal-hint{display:block;font-size:.65rem;color:#8a8697;margin-top:.5rem}
+.certificate-seal-body .danger-link{margin-top:.7rem}
+@media(max-width:700px){.certificate-seal-body{grid-template-columns:1fr}}
