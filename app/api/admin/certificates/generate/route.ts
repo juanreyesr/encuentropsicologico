@@ -2,7 +2,7 @@ import { isEventAdmin } from "../../../../../lib/admin";
 import type { CertificateType } from "../../../../../lib/certificate-template";
 import { supabaseServerFetch } from "../../../../../lib/supabase-server";
 
-const SETTINGS_COLUMNS = "event_name,event_date,event_place,professional_title,general_title,speaker_title,organizer_title,professional_body,general_body,speaker_body,organizer_body,signatures,sponsor_logos,seal_url,seal_enabled";
+const SETTINGS_COLUMNS = "event_name,event_date,event_place,professional_title,general_title,speaker_title,organizer_title,professional_body,general_body,speaker_body,organizer_body,signatures,sponsor_logos,seal_url,seal_enabled,seal_left_url,seal_left_enabled";
 
 type Registration = { id: number; user_id: string; attendee_type: string; event_roles: string[] | null };
 
