@@ -119,7 +119,7 @@ export default function CertificateManager() {
     return () => window.removeEventListener("keydown", closeWithEscape);
   }, [editorOpen, previewOpen]);
 
-  async function upload(event: ChangeEvent<HTMLInputElement>, type: "signature" | "logo" | "seal", index = 0) {
+  async function upload(event: ChangeEvent<HTMLInputElement>, type: "signature" | "logo" | "seal" | "sealLeft", index = 0) {
     const file = event.target.files?.[0];
     if (!file) return;
     if (type === "logo" && settings.sponsor_logos.length >= MAX_SPONSOR_LOGOS) {
@@ -148,6 +148,8 @@ export default function CertificateManager() {
       }
       if (type === "seal") {
         setSettings(current => ({ ...current, seal_url: data.url as string, seal_enabled: true }));
+      } else if (type === "sealLeft") {
+        setSettings(current => ({ ...current, seal_left_url: data.url as string, seal_left_enabled: true }));
       } else if (type === "signature") {
         setSettings(current => ({
           ...current,
@@ -156,7 +158,7 @@ export default function CertificateManager() {
       } else {
         setSettings(current => ({ ...current, sponsor_logos: [...current.sponsor_logos, data.url as string].slice(0, MAX_SPONSOR_LOGOS) }));
       }
-      setMessage(type === "signature" ? "Firma cargada. Guarda el modelo para conservarla." : type === "seal" ? "Sello cargado y activado. Guarda el modelo para conservarlo." : "Logo cargado. Guarda el modelo para conservarlo.");
+      setMessage(type === "signature" ? "Firma cargada. Guarda el modelo para conservarla." : type === "seal" || type === "sealLeft" ? "Sello cargado y activado. Guarda el modelo para conservarlo." : "Logo cargado. Guarda el modelo para conservarlo.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : requestError(error, "No se pudo cargar la imagen. Comprueba tu conexión e inténtalo de nuevo."));
     } finally {
@@ -299,21 +301,28 @@ export default function CertificateManager() {
             </div>
 
             <div className="certificate-seal">
-              <h3>Sello de la firma central</h3>
-              <p>Se imprime sobre la firma del centro, ligeramente girado y fundido con el papel, como un sello real. Puedes activarlo o desactivarlo cuando quieras sin perder la imagen.</p>
-              <div className="certificate-seal-body">
-                <label className="certificate-file-control">
-                  <span className="certificate-file-preview seal">{settings.seal_url ? <img src={settings.seal_url} alt="Vista previa del sello" /> : <b>Sello</b>}</span>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "seal")} />
-                  <strong>{busyAction === "upload" ? "Cargando imagen…" : settings.seal_url ? "Cambiar sello" : "Cargar sello"}</strong>
-                  <small>PNG con fondo blanco o transparente · máximo 10 MB</small>
-                </label>
-                <div>
-                  <label className="live-toggle"><div><b>{settings.seal_enabled ? "Sello activado" : "Sello desactivado"}</b><small>{settings.seal_enabled ? "Aparece en los diplomas que se emitan a partir de ahora." : "La imagen se conserva, pero no se imprime."}</small></div><input type="checkbox" disabled={!settings.seal_url} checked={settings.seal_enabled} onChange={event => setSettings({ ...settings, seal_enabled: event.target.checked })} /><i /></label>
-                  {!settings.seal_url && <small className="certificate-seal-hint">Carga primero la imagen del sello para poder activarlo.</small>}
-                  {settings.seal_url && <button type="button" className="danger-link" onClick={() => setSettings({ ...settings, seal_url: "", seal_enabled: false })}>Quitar la imagen del sello</button>}
+              <h3>Sellos del diploma</h3>
+              <p>Se imprimen girados y fundidos con el papel, como sellos reales, sin tapar los nombres. Puedes activarlos o desactivarlos cuando quieras sin perder la imagen.</p>
+              {([
+                { key: "sealLeft", title: "Sello izquierdo", help: "Cae entre la firma de la izquierda y la del centro.", url: settings.seal_left_url, enabled: settings.seal_left_enabled, setUrl: (url: string) => setSettings({ ...settings, seal_left_url: url, seal_left_enabled: url ? settings.seal_left_enabled : false }), setEnabled: (value: boolean) => setSettings({ ...settings, seal_left_enabled: value }) },
+                { key: "seal", title: "Sello derecho", help: "Monta sobre la mitad derecha de la firma central.", url: settings.seal_url, enabled: settings.seal_enabled, setUrl: (url: string) => setSettings({ ...settings, seal_url: url, seal_enabled: url ? settings.seal_enabled : false }), setEnabled: (value: boolean) => setSettings({ ...settings, seal_enabled: value }) },
+              ] as const).map(seal => (
+                <div className="certificate-seal-body" key={seal.key}>
+                  <label className="certificate-file-control">
+                    <span className="certificate-file-preview seal">{seal.url ? <img src={seal.url} alt={`Vista previa del ${seal.title.toLowerCase()}`} /> : <b>{seal.title}</b>}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, seal.key === "seal" ? "seal" : "sealLeft")} />
+                    <strong>{busyAction === "upload" ? "Cargando imagen…" : seal.url ? "Cambiar imagen" : "Cargar imagen"}</strong>
+                    <small>PNG con fondo blanco o transparente · máximo 10 MB</small>
+                  </label>
+                  <div>
+                    <b className="certificate-signature-position">{seal.title}</b>
+                    <p className="certificate-seal-place">{seal.help}</p>
+                    <label className="live-toggle"><div><b>{seal.enabled ? "Activado" : "Desactivado"}</b><small>{seal.enabled ? "Aparece en los diplomas que se emitan a partir de ahora." : "La imagen se conserva, pero no se imprime."}</small></div><input type="checkbox" disabled={!seal.url} checked={seal.enabled} onChange={event => seal.setEnabled(event.target.checked)} /><i /></label>
+                    {!seal.url && <small className="certificate-seal-hint">Carga primero la imagen para poder activarlo.</small>}
+                    {seal.url && <button type="button" className="danger-link" onClick={() => seal.setUrl("")}>Quitar esta imagen</button>}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
 
             <div className="certificate-logos">

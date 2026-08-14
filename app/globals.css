@@ -255,3 +255,5 @@
 .certificate-seal-hint{display:block;font-size:.65rem;color:#8a8697;margin-top:.5rem}
 .certificate-seal-body .danger-link{margin-top:.7rem}
 @media(max-width:700px){.certificate-seal-body{grid-template-columns:1fr}}
+.certificate-seal-body+.certificate-seal-body{margin-top:1.2rem;padding-top:1.2rem;border-top:1px dashed #ded7ca}
+.certificate-seal-place{font-size:.68rem;color:#6a6875;margin:.2rem 0 .6rem;line-height:1.45}
