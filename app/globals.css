@@ -243,3 +243,5 @@
 .materials-actions a{border-color:#25603f;background:#25603f;color:#fff}
 .materials-actions button:disabled{opacity:.55;cursor:default}
 @media(max-width:700px){.materials-form{grid-template-columns:1fr}.materials-form .wide{grid-column:auto}}
+.certificate-signature-help{font-size:.72rem;color:#6a6875;line-height:1.5;margin:.2rem 0 1rem}
+.certificate-signature-position{display:block;font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;color:#8a6a2c;margin-bottom:.4rem}
