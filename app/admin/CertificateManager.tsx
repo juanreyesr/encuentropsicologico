@@ -5,6 +5,9 @@ import { CERTIFICATE_TYPES, CERTIFICATE_TYPE_LABELS, DEFAULT_CERTIFICATE_SETTING
 
 type Settings = Required<CertificateSettings>;
 type BusyAction = "upload" | "save" | "generate" | null;
+type Counts = Record<CertificateType, number>;
+type Progress = { processed: number; total: number; byType: Counts } | null;
+const emptyCounts = (): Counts => ({ professional: 0, general: 0, speaker: 0, organizer: 0 });
 const DIRECT_UPLOAD_LIMIT = 3.5 * 1024 * 1024;
 const MAX_SPONSOR_LOGOS = 4;
 
@@ -95,6 +98,7 @@ export default function CertificateManager() {
   const [previewError, setPreviewError] = useState("");
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
   const [message, setMessage] = useState("");
+  const [progress, setProgress] = useState<Progress>(null);
 
   useEffect(() => {
     let active = true;
@@ -189,19 +193,38 @@ export default function CertificateManager() {
     }
   }
 
+  // La emisión avanza por lotes para poder mostrar el porcentaje real mientras
+  // ocurre, en vez de una espera sin señales.
   async function generate() {
-    if (!window.confirm("Se emitirán diplomas para todas las personas con asistencia verificada, cada una con el modelo que corresponde a su función. ¿Continuar?")) return;
+    const planResponse = await fetch("/api/admin/certificates/generate", { cache: "no-store" });
+    const plan = planResponse.ok ? await planResponse.json() as { eligible: number; batchSize: number } : { eligible: 0, batchSize: 40 };
+    if (!plan.eligible) { setMessage("Aún no hay asistencias verificadas. Activa y completa el control de asistencia antes de emitir diplomas."); return; }
+    if (!window.confirm(`Se emitirán diplomas para ${plan.eligible} persona${plan.eligible === 1 ? "" : "s"} con asistencia verificada, cada una con el modelo que corresponde a su función. ¿Continuar?`)) return;
+
     setBusyAction("generate");
     setMessage("");
+    const totals = emptyCounts();
+    setProgress({ processed: 0, total: plan.eligible, byType: { ...totals } });
     try {
-      const { response, data } = await requestJson("/api/admin/certificates/generate", { method: "POST" }, 45_000);
-      const generated = Number(data.generated ?? 0);
-      const byType = data.byType && typeof data.byType === "object" ? data.byType as Record<string, number> : {};
-      const detail = CERTIFICATE_TYPES.filter(type => byType[type]).map(type => `${byType[type]} ${CERTIFICATE_TYPE_LABELS[type].toLowerCase()}`).join(" · ");
-      setMessage(response.ok
-        ? `${generated} diploma${generated === 1 ? "" : "s"} emitido${generated === 1 ? "" : "s"}.${detail ? ` ${detail}.` : ""}`
-        : String(data.error ?? "No se pudieron emitir los diplomas."));
+      let offset = 0;
+      for (;;) {
+        const { response, data } = await requestJson("/api/admin/certificates/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ offset, limit: plan.batchSize }),
+        }, 45_000);
+        if (!response.ok) { setProgress(null); setMessage(String(data.error ?? "No se pudieron emitir los diplomas.")); return; }
+        const batch = data as { processed: number; total: number; done: boolean; byType: Counts };
+        CERTIFICATE_TYPES.forEach(type => { totals[type] += batch.byType?.[type] ?? 0; });
+        setProgress({ processed: batch.processed, total: batch.total || plan.eligible, byType: { ...totals } });
+        offset = batch.processed;
+        if (batch.done) break;
+      }
+      const generated = CERTIFICATE_TYPES.reduce((sum, type) => sum + totals[type], 0);
+      const detail = CERTIFICATE_TYPES.filter(type => totals[type]).map(type => `${totals[type]} ${CERTIFICATE_TYPE_LABELS[type].toLowerCase()}`).join(" · ");
+      setMessage(`${generated} diploma${generated === 1 ? "" : "s"} emitido${generated === 1 ? "" : "s"}.${detail ? ` ${detail}.` : ""} Ya están disponibles en la cuenta de cada participante.`);
     } catch (error) {
+      setProgress(null);
       setMessage(requestError(error, "No se pudieron emitir los diplomas. Inténtalo de nuevo."));
     } finally {
       setBusyAction(null);
@@ -250,8 +273,13 @@ export default function CertificateManager() {
         <div className="certificate-manager-actions">
           <button className="secondary" onClick={() => setEditorOpen(true)}>Editar modelo y firmas</button>
           <button className="secondary certificate-preview-trigger" onClick={() => void showPreview()}>Previsualizar certificados</button>
-          <button className="admin-save" disabled={busyAction !== null} onClick={generate}>{busyAction === "generate" ? "Procesando…" : "Generar certificados para confirmados"}</button>
+          <button className="admin-save" disabled={busyAction !== null} onClick={generate}>{busyAction === "generate" ? `Emitiendo… ${progress && progress.total ? Math.round((progress.processed / progress.total) * 100) : 0}%` : "Emitir diplomas"}</button>
         </div>
+        {progress && <div className="certificate-progress" role="status" aria-live="polite">
+          <div className="certificate-progress-bar"><b style={{ width: `${progress.total ? Math.round((progress.processed / progress.total) * 100) : 0}%` }} /></div>
+          <p><b>{progress.total ? Math.round((progress.processed / progress.total) * 100) : 0}%</b><span>{progress.processed} de {progress.total} diplomas emitidos</span>{busyAction === "generate" ? <small>Emitiendo…</small> : <small>Emisión completada</small>}</p>
+          <div className="certificate-progress-types">{CERTIFICATE_TYPES.map(type => <span key={type}>{CERTIFICATE_TYPE_LABELS[type]}<b>{progress.byType[type]}</b></span>)}</div>
+        </div>}
         {message && <p className={isErrorMessage(message) ? "community-error" : "community-success"} role="status">{message}</p>}
       </div>
 

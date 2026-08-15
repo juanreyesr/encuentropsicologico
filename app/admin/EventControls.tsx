@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CERTIFICATE_TYPES, CERTIFICATE_TYPE_LABELS, type CertificateType } from "../../lib/certificate-template";
 import type { EventControls as Controls, MaterialsMode } from "../../lib/event-controls";
 
 type Metrics = { confirmed: number; verified: number; presencial: number; virtual: number; pending: number; organizers: number; organizersVerified: number; speakers: number; questions: number };
-type Data = { controls: Controls; metrics: Metrics };
+type Certificates = { issued: number; byType: Record<CertificateType, number>; lastIssuedAt: string | null; pending: number };
+type Data = { controls: Controls; metrics: Metrics; certificates: Certificates };
 
 const MATERIALS_MODES: Array<{ value: MaterialsMode; label: string; help: string }> = [
   { value: "auto", label: "Automático", help: "Cada material se libera al terminar su conferencia, solo para quienes tengan la asistencia verificada." },
@@ -46,6 +48,7 @@ export default function EventControls() {
 
   const controls = data?.controls;
   const metrics = data?.metrics;
+  const certificates = data?.certificates;
   const attendanceSummary = !controls?.attendanceEnabled
     ? "Cerrada: nadie puede verificarse."
     : controls.attendanceOrganizersOnly
@@ -105,6 +108,17 @@ export default function EventControls() {
         <small>{MATERIALS_MODES.find(mode => mode.value === controls?.materialsMode)?.help}</small>
       </div>
       {toggle("libraryEnabled", "Biblioteca de la comunidad", "Controla el acceso de participantes a los recursos compartidos y al envío de nuevos aportes.", "Biblioteca comunitaria actualizada.")}
+
+      <div className="control-certificates">
+        <div className="control-certificates-head">
+          <b>Diplomas emitidos</b>
+          <span>{certificates?.issued ?? 0} de {(certificates?.issued ?? 0) + (certificates?.pending ?? 0)} personas con asistencia verificada</span>
+        </div>
+        <div className="control-certificates-grid">
+          {CERTIFICATE_TYPES.map(type => <article key={type}><span>{CERTIFICATE_TYPE_LABELS[type]}</span><b>{certificates?.byType?.[type] ?? 0}</b></article>)}
+        </div>
+        <small>{certificates?.issued && certificates.lastIssuedAt ? `Última emisión ${new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(certificates.lastIssuedAt))}${certificates.pending ? ` · faltan ${certificates.pending} por emitir` : " · todas las personas verificadas tienen el suyo"}` : "Todavía no se ha emitido ninguno. Se emiten desde la sección Certificados, cuando la asistencia esté cerrada."}</small>
+      </div>
     </section>
 
     <section className="panel control-group">

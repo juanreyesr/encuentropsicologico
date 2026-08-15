@@ -1,8 +1,18 @@
 import { isEventAdmin } from "../../../../lib/admin";
+import { CERTIFICATE_TYPES, type CertificateType } from "../../../../lib/certificate-template";
 import { controlsToColumns, loadEventControls, normalizeEventControls, type EventControls } from "../../../../lib/event-controls";
 import { supabaseServerFetch } from "../../../../lib/supabase-server";
 
 type RegistrationRow = { modality: string; status: string; event_roles: string[] | null; attendance_verified_at: string | null };
+
+// Diplomas ya emitidos, separados por el modelo que le tocó a cada persona.
+async function certificateMetrics(eligible: number) {
+  const response = await supabaseServerFetch("encuentro_psicologico_certificates?select=certificate_type,issued_at&issued_at=not.is.null&order=issued_at.desc");
+  const rows = response.ok ? await response.json() as Array<{ certificate_type: string; issued_at: string }> : [];
+  const byType = Object.fromEntries(CERTIFICATE_TYPES.map(type => [type, 0])) as Record<CertificateType, number>;
+  rows.forEach(row => { if (CERTIFICATE_TYPES.includes(row.certificate_type as CertificateType)) byType[row.certificate_type as CertificateType] += 1; });
+  return { issued: rows.length, byType, lastIssuedAt: rows[0]?.issued_at ?? null, pending: Math.max(0, eligible - rows.length) };
+}
 
 async function metrics() {
   const [registrationsResponse, questionsResponse] = await Promise.all([
@@ -28,7 +38,8 @@ async function metrics() {
 export async function GET() {
   if (!await isEventAdmin()) return Response.json({ error: "No autorizado" }, { status: 401 });
   const [controls, counts] = await Promise.all([loadEventControls(), metrics()]);
-  return Response.json({ controls, metrics: counts });
+  const certificates = await certificateMetrics(counts.verified);
+  return Response.json({ controls, metrics: counts, certificates });
 }
 
 // Suspender todo deja la jornada cerrada de inmediato sin borrar ningún dato:
