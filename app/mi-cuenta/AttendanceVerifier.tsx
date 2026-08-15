@@ -15,6 +15,7 @@ type State = {
 type Match = {
   id: number;
   name: string;
+  phone: string | null;
   modality: string;
   attendeeType: string | null;
   institution: string | null;
@@ -46,6 +47,7 @@ export default function AttendanceVerifier({ isOrganizer }: { isOrganizer: boole
   const [result, setResult] = useState("");
   const [saving, setSaving] = useState(false);
   const [match, setMatch] = useState<Match | null>(null);
+  const [options, setOptions] = useState<Match[]>([]);
   const [confirmed, setConfirmed] = useState<{ name: string; alreadyVerified: boolean } | null>(null);
   const phoneInput = useRef<HTMLInputElement | null>(null);
 
@@ -56,13 +58,17 @@ export default function AttendanceVerifier({ isOrganizer }: { isOrganizer: boole
 
   // Paso 1: consultar. Solo busca y muestra a quién se está por verificar; no
   // escribe nada, así se corrige un número mal digitado sin marcar a nadie.
+  // La búsqueda usa los últimos ocho dígitos, así que quien se inscribió con
+  // código de país aparece igual; si hay varias coincidencias se eligen aquí.
   async function lookup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSaving(true); setResult(""); setMatch(null);
+    setSaving(true); setResult(""); setMatch(null); setOptions([]);
     const response = await fetch("/api/attendance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "lookup", phone }) });
     const data = await response.json();
     setSaving(false);
-    if (response.ok) setMatch(data.registration as Match); else setResult(data.error ?? "No se pudo consultar.");
+    if (!response.ok) { setResult(data.error ?? "No se pudo consultar."); return; }
+    const found = (data.matches ?? []) as Match[];
+    if (found.length === 1) setMatch(found[0]); else setOptions(found);
   }
 
   // Paso 2: confirmar a la persona que ya está en pantalla.
@@ -74,13 +80,13 @@ export default function AttendanceVerifier({ isOrganizer }: { isOrganizer: boole
     setSaving(false);
     if (!response.ok) { setResult(data.error ?? "No se pudo verificar."); return; }
     setConfirmed({ name: data.name ?? match.name, alreadyVerified: Boolean(data.alreadyVerified) });
-    setMatch(null);
+    setMatch(null); setOptions([]);
     await load();
   }
 
   // Paso 3: seguir con la siguiente persona sin salir del kiosko.
   function nextPerson() {
-    setPhone(""); setMatch(null); setConfirmed(null); setResult("");
+    setPhone(""); setMatch(null); setOptions([]); setConfirmed(null); setResult("");
     window.setTimeout(() => phoneInput.current?.focus(), 0);
   }
 
@@ -115,15 +121,24 @@ export default function AttendanceVerifier({ isOrganizer }: { isOrganizer: boole
       <p>{state.organizersOnly ? "Verificación abierta solo para la organización: consulta el teléfono de una persona del equipo con inscripción presencial confirmada." : "Ingresa el número de teléfono, consulta a quién pertenece y confirma solo si es la persona correcta."}</p>
 
       <form onSubmit={lookup}>
-        <label>Número de teléfono<input ref={phoneInput} autoFocus required minLength={8} inputMode="numeric" pattern="[0-9]*" value={phone} onChange={event => { setPhone(event.target.value.replace(/\D/g, "")); setMatch(null); setResult(""); }} /></label>
+        <label>Número de teléfono<input ref={phoneInput} autoFocus required minLength={8} inputMode="numeric" pattern="[0-9]*" value={phone} onChange={event => { setPhone(event.target.value.replace(/\D/g, "")); setMatch(null); setOptions([]); setResult(""); }} /><small>Se busca por los últimos 8 dígitos: no importa si la persona se inscribió con el código de país.</small></label>
         {!match && <button className="primary" disabled={saving}>{saving ? "Consultando…" : "Consultar"}</button>}
       </form>
+
+      {!match && options.length > 1 && <div className="kiosk-options">
+        <span>{options.length} inscripciones terminan en esos dígitos</span>
+        {options.map(option => <button key={option.id} type="button" onClick={() => setMatch(option)}>
+          <b>{option.name}</b>
+          <small>{option.phone ?? ""}{option.alreadyVerified ? " · ya verificado" : ""}</small>
+        </button>)}
+      </div>}
 
       {match && <div className="kiosk-match">
         <span>¿ES ESTA LA PERSONA?</span>
         <b>{match.name}</b>
         <small>{profileLine(match)}</small>
-        {match.alreadyVerified && <p className="kiosk-warning">Ya tiene su asistencia verificada{verifiedLabel(match.verifiedAt) ? ` a las ${verifiedLabel(match.verifiedAt)}` : ""}.</p>}
+        {match.phone && <small className="kiosk-phone">Tel. {match.phone}</small>}
+        {match.alreadyVerified &&<p className="kiosk-warning">Ya tiene su asistencia verificada{verifiedLabel(match.verifiedAt) ? ` a las ${verifiedLabel(match.verifiedAt)}` : ""}.</p>}
         <div className="kiosk-actions">
           {match.alreadyVerified
             ? <button className="primary" onClick={nextPerson}>Confirmar otro</button>
