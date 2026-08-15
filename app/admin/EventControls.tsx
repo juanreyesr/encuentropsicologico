@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CERTIFICATE_TYPES, CERTIFICATE_TYPE_LABELS, type CertificateType } from "../../lib/certificate-template";
 import type { EventControls as Controls, MaterialsMode } from "../../lib/event-controls";
+import RaffleBox from "./RaffleBox";
 
 type Metrics = { confirmed: number; verified: number; presencial: number; virtual: number; pending: number; organizers: number; organizersVerified: number; speakers: number; questions: number };
 type Certificates = { issued: number; byType: Record<CertificateType, number>; lastIssuedAt: string | null; pending: number };
@@ -120,6 +121,8 @@ export default function EventControls() {
         <small>{certificates?.issued && certificates.lastIssuedAt ? `Última emisión ${new Intl.DateTimeFormat("es-GT", { dateStyle: "medium", timeStyle: "short" }).format(new Date(certificates.lastIssuedAt))}${certificates.pending ? ` · faltan ${certificates.pending} por emitir` : " · todas las personas verificadas tienen el suyo"}` : "Todavía no se ha emitido ninguno. Se emiten desde la sección Certificados, cuando la asistencia esté cerrada."}</small>
       </div>
     </section>
+
+    <RaffleBox />
 
     <section className="panel control-group">
       <div className="panel-title"><h3>Vista previa del equipo organizador</h3></div>

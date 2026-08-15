@@ -4,6 +4,18 @@ import { supabaseServerFetch } from "../../../lib/supabase-server";
 
 const digits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
 const ORGANIZER_FILTER = "event_roles=cs.%7Borganizer%7D";
+const KIOSK_COLUMNS = "id,user_id,name,modality,attendance_verified_at,attendee_type,institution,event_roles";
+
+type KioskRegistration = {
+  id: number;
+  user_id: string | null;
+  name: string;
+  modality: string;
+  attendance_verified_at?: string | null;
+  attendee_type?: string | null;
+  institution?: string | null;
+  event_roles?: string[] | null;
+};
 
 async function context() {
   const user = await currentUser();
@@ -37,13 +49,45 @@ async function markAttendance(registration: { id: number; user_id?: string | nul
   return { alreadyVerified: false, name: registration.name, modality: registration.modality };
 }
 
+// Mientras la verificación esté abierta solo para la organización, el kiosko
+// encuentra únicamente a organizadores: así su asistencia queda registrada
+// desde el montaje sin tocar la de los participantes.
+async function findByPhone(phone: string, organizersOnly: boolean) {
+  const restricted = organizersOnly ? `&${ORGANIZER_FILTER}` : "";
+  const response = await supabaseServerFetch(`encuentro_psicologico_registrations?select=${KIOSK_COLUMNS}&phone=eq.${encodeURIComponent(phone)}&modality=eq.presencial&status=eq.confirmed${restricted}&limit=1`);
+  if (!response.ok) return { failed: true as const };
+  const [registration] = await response.json() as KioskRegistration[];
+  return { failed: false as const, registration: registration ?? null };
+}
+
+// Ficha que ve la persona organizadora antes de confirmar: lo justo para
+// reconocer a quién tiene enfrente, sin exponer datos de contacto.
+function kioskView(registration: KioskRegistration) {
+  const roles = registration.event_roles ?? [];
+  return {
+    id: registration.id,
+    name: registration.name,
+    modality: registration.modality,
+    attendeeType: registration.attendee_type ?? null,
+    institution: registration.institution ?? null,
+    verifiedAt: registration.attendance_verified_at ?? null,
+    alreadyVerified: Boolean(registration.attendance_verified_at),
+    organizer: roles.includes("organizer"),
+    speaker: roles.includes("speaker"),
+  };
+}
+
+const NOT_FOUND = (restricted: boolean) => restricted
+  ? "Mientras la verificación esté abierta solo para la organización, únicamente puedes verificar a organizadores con inscripción presencial confirmada."
+  : "No encontramos una inscripción presencial confirmada con ese número.";
+
 export async function POST(request: Request) {
   const state = await context();
   if (!state) return Response.json({ error: "Inicia sesión para verificar asistencia." }, { status: 401 });
   if (!state.modules.attendance.enabled) {
     return Response.json({ error: state.controls.attendanceEnabled ? "La verificación de asistencia está abierta solo para el equipo organizador." : "La verificación de asistencia aún no está habilitada." }, { status: 403 });
   }
-  const body = await request.json() as { action?: string; phone?: string };
+  const body = await request.json() as { action?: string; phone?: string; registrationId?: number };
 
   if (body.action === "virtual") {
     if (!state.modules.selfCheckin.enabled) return Response.json({ error: "La autoconfirmación de participantes virtuales está suspendida." }, { status: 403 });
@@ -55,20 +99,25 @@ export async function POST(request: Request) {
     catch { return Response.json({ error: "No fue posible registrar tu asistencia." }, { status: 503 }); }
   }
 
-  if (body.action === "kiosk") {
+  if (body.action === "lookup" || body.action === "kiosk") {
     if (!state.organizer) return Response.json({ error: "Solo organizadores asignados pueden usar el modo kiosko." }, { status: 403 });
     if (!state.modules.kiosk.enabled) return Response.json({ error: "El modo kiosko está suspendido por la organización." }, { status: 403 });
     const phone = digits(body.phone);
     if (phone.length < 8) return Response.json({ error: "Ingresa un número de teléfono válido." }, { status: 400 });
-    // Mientras la verificación esté abierta solo para la organización, el kiosko
-    // encuentra únicamente a organizadores: así su asistencia queda registrada
-    // desde el montaje sin tocar la de los participantes.
-    const restricted = state.controls.attendanceOrganizersOnly ? `&${ORGANIZER_FILTER}` : "";
-    const response = await supabaseServerFetch(`encuentro_psicologico_registrations?select=id,user_id,name,modality,attendance_verified_at&phone=eq.${encodeURIComponent(phone)}&modality=eq.presencial&status=eq.confirmed${restricted}&limit=1`);
-    if (!response.ok) return Response.json({ error: "No fue posible buscar la inscripción." }, { status: 503 });
-    const [registration] = await response.json() as Array<{ id: number; user_id: string; name: string; modality: string; attendance_verified_at?: string | null }>;
-    if (!registration) return Response.json({ error: restricted ? "Mientras la verificación esté abierta solo para la organización, únicamente puedes verificar a organizadores con inscripción presencial confirmada." : "No encontramos una inscripción presencial confirmada con ese número." }, { status: 404 });
-    try { return Response.json({ ok: true, ...(await markAttendance(registration, "kiosk", state.user.id)) }); }
+    const restricted = state.controls.attendanceOrganizersOnly;
+    const search = await findByPhone(phone, restricted);
+    if (search.failed) return Response.json({ error: "No fue posible buscar la inscripción." }, { status: 503 });
+    if (!search.registration) return Response.json({ error: NOT_FOUND(restricted) }, { status: 404 });
+
+    // Consultar no escribe nada: solo muestra a quién se está por verificar.
+    if (body.action === "lookup") return Response.json({ ok: true, registration: kioskView(search.registration) });
+
+    // La confirmación exige que sea la misma ficha que se consultó, para que un
+    // cambio de número entre pantalla y pantalla nunca verifique a otra persona.
+    if (body.registrationId && body.registrationId !== search.registration.id) {
+      return Response.json({ error: "Los datos cambiaron desde la consulta. Vuelve a consultar el número antes de confirmar." }, { status: 409 });
+    }
+    try { return Response.json({ ok: true, registration: kioskView(search.registration), ...(await markAttendance(search.registration, "kiosk", state.user.id)) }); }
     catch { return Response.json({ error: "No fue posible registrar la asistencia." }, { status: 503 }); }
   }
   return Response.json({ error: "Acción de verificación no reconocida." }, { status: 400 });
