@@ -257,3 +257,25 @@
 @media(max-width:700px){.certificate-seal-body{grid-template-columns:1fr}}
 .certificate-seal-body+.certificate-seal-body{margin-top:1.2rem;padding-top:1.2rem;border-top:1px dashed #ded7ca}
 .certificate-seal-place{font-size:.68rem;color:#6a6875;margin:.2rem 0 .6rem;line-height:1.45}
+
+/* Avance de emisión de diplomas y su detalle por tipo. */
+.certificate-progress{margin-top:1.2rem;padding:1rem 1.1rem;background:#fbfaf7;border:1px solid #ece8df}
+.certificate-progress-bar{height:10px;border-radius:99px;background:#eee9df;overflow:hidden}
+.certificate-progress-bar b{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#6f52a2,#d6aa67);transition:width .35s;min-width:2px}
+.certificate-progress>p{display:flex;align-items:baseline;gap:.7rem;flex-wrap:wrap;margin:.7rem 0 0}
+.certificate-progress>p>b{font:1.5rem Georgia;color:#171938}
+.certificate-progress>p>span{font-size:.72rem;color:#5f5c6b}
+.certificate-progress>p>small{margin-left:auto;font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#8a6a2c}
+.certificate-progress-types{display:flex;flex-wrap:wrap;gap:.5rem .9rem;margin-top:.7rem}
+.certificate-progress-types span{display:flex;align-items:baseline;gap:.35rem;font-size:.62rem;color:#77748a;background:#fff;border:1px solid #ece8df;padding:.3rem .6rem}
+.certificate-progress-types b{font-size:.85rem;color:#171938}
+.control-certificates{margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid rgba(20,35,66,.12)}
+.control-certificates-head{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.control-certificates-head b{font-size:.78rem}
+.control-certificates-head span{font-size:.65rem;color:#77748a}
+.control-certificates-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;margin:.7rem 0 .5rem}
+.control-certificates-grid article{background:#fbfaf7;border:1px solid #ece8df;padding:.7rem .8rem}
+.control-certificates-grid span{display:block;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:#8a7a4f}
+.control-certificates-grid b{display:block;font:1.5rem Georgia;color:#171938;margin-top:.2rem}
+.control-certificates>small{font-size:.64rem;color:#77748a;line-height:1.5}
+@media(max-width:700px){.control-certificates-grid{grid-template-columns:1fr 1fr}}
