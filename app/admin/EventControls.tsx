@@ -94,7 +94,7 @@ export default function EventControls() {
     <section className="panel control-group">
       <div className="panel-title"><h3>Participación en vivo</h3><span className={controls?.questionsEnabled ? "online" : "problem-count"}>{controls?.questionsEnabled ? "Abierta" : "Cerrada"}</span></div>
       <p className="admin-note">Las preguntas llegan solo al usuario asignado como ponente de cada conferencia. El enlace y el QR pueden proyectarse desde la sección Preguntas aunque todavía esté cerrado.</p>
-      {toggle("questionsEnabled", "Preguntas a conferencistas", "Abre o suspende el envío de preguntas y valoraciones durante la jornada.", "Espacio de preguntas actualizado.")}
+      {toggle("questionsEnabled", "Preguntas a conferencistas", "Abre o cierra el envío de preguntas nuevas. Al cerrarlo, cada ponente sigue viendo y respondiendo las que ya recibió, y quien preguntó sigue leyendo sus respuestas.", "Espacio de preguntas actualizado.")}
     </section>
 
     <section className="panel control-group">

@@ -39,13 +39,14 @@ async function loadSpeakerAssignment(programItemId?: number | null): Promise<Spe
 
 export default async function AccountPage() {
   const user = await requireUser();
-  const [regResponse, certificateResponse, profileResponse, directoryResponse, rewardResponse, pendingResourceResponse] = await Promise.all([
+  const [regResponse, certificateResponse, profileResponse, directoryResponse, rewardResponse, pendingResourceResponse, questionsResponse] = await Promise.all([
     supabaseServerFetch(`encuentro_psicologico_registrations?select=modality,status,name,event_roles,speaker_program_item_id&user_id=eq.${user.id}`),
     supabaseServerFetch(`encuentro_psicologico_certificates?select=certificate_number,attendance_confirmed,issued_at&user_id=eq.${user.id}&limit=1`),
     supabaseServerFetch(`encuentro_psicologico_profiles?select=professional_network_opt_in&user_id=eq.${user.id}&limit=1`),
     supabaseServerFetch(`encuentro_psicologico_professional_directory?select=share_enabled,profession,specialty,address,email,whatsapp,website,instagram&user_id=eq.${user.id}&limit=1`),
     supabaseServerFetch(`encuentro_psicologico_community_reward_events?select=id&owner_user_id=eq.${user.id}`, { headers: { Prefer: "count=exact", Range: "0-0" } }),
     supabaseServerFetch(`encuentro_psicologico_community_resources?select=id&owner_user_id=eq.${user.id}&status=eq.pending`, { headers: { Prefer: "count=exact", Range: "0-0" } }),
+    supabaseServerFetch(`encuentro_psicologico_speaker_questions?select=id&or=(asker_user_id.eq.${user.id},speaker_user_id.eq.${user.id})&limit=1`),
   ]);
   const registrations = regResponse.ok ? await regResponse.json() as Array<{ modality:string; status:string; name:string; event_roles?: string[]; speaker_program_item_id?: number | null }> : [];
   const [certificate] = certificateResponse.ok ? await certificateResponse.json() as Array<{ certificate_number?:string; attendance_confirmed:boolean }> : [];
@@ -53,6 +54,9 @@ export default async function AccountPage() {
   const [directory] = directoryResponse.ok ? await directoryResponse.json() as ProfessionalDirectory[] : [];
   const communityStars = rewardResponse.ok ? Number(rewardResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
   const pendingCommunityStars = pendingResourceResponse.ok ? Number(pendingResourceResponse.headers.get("content-range")?.split("/")[1] ?? 0) : 0;
+  // Quien ya envió o recibió una pregunta conserva la entrada al espacio aunque
+  // la organización cierre las preguntas nuevas: ahí están sus respuestas.
+  const hasQuestions = questionsResponse.ok && (await questionsResponse.json() as unknown[]).length > 0;
   const activeRegistration = registrations[0];
   const speakerRegistration = registrations.find(item => item.event_roles?.includes("speaker")) ?? null;
   const speakerAssignment = speakerRegistration ? await loadSpeakerAssignment(speakerRegistration.speaker_program_item_id) : null;
@@ -75,8 +79,8 @@ export default async function AccountPage() {
       <LiveBox />
       <AttendanceVerifier isOrganizer={isOrganizer} />
       {speakerRegistration && <SpeakerAssignmentCard assignment={speakerAssignment} />}
-      {modules.questions.enabled
-        ? <article className="account-resources questions-access"><p className="section-kicker">PARTICIPACIÓN EN VIVO</p><h2>Preguntas a conferencistas</h2><p>El espacio está abierto: envía tu pregunta y valora la experiencia de cada conferencia.</p><Link className="primary" href="/preguntas">Ir al espacio de preguntas</Link></article>
+      {modules.questions.enabled || hasQuestions
+        ? <article className="account-resources questions-access"><p className="section-kicker">PARTICIPACIÓN EN VIVO</p><h2>Preguntas a conferencistas</h2><p>{modules.questions.enabled ? "El espacio está abierto: envía tu pregunta y valora la experiencia de cada conferencia." : "Ya no se reciben preguntas nuevas, pero las que ya están siguen abiertas: puedes responderlas y leer las respuestas."}</p><Link className="primary" href="/preguntas">{speakerRegistration || !modules.questions.enabled ? "Ver mis preguntas" : "Ir al espacio de preguntas"}</Link></article>
         : modules.questions.preview && <LockedModule kicker="PARTICIPACIÓN EN VIVO" title="Preguntas a conferencistas"><p>Durante la jornada podrás enviar preguntas a la persona que expone y valorar cada conferencia. Si eres ponente, aquí recibirás las preguntas de tu conferencia.</p></LockedModule>}
       {modules.materials.enabled ? <EventMaterials /> : modules.materials.preview && <LockedModule kicker="MATERIALES DEL ENCUENTRO" title="Materiales de las conferencias"><p>Cada ponente comparte aquí su material. Se libera al terminar su conferencia, solo para quienes tengan la asistencia verificada.</p></LockedModule>}
       {modules.library.enabled ? <CommunityLibrary /> : modules.library.preview && <LockedModule kicker="BIBLIOTECA DE LA COMUNIDAD" title="Recursos compartidos"><p>Un espacio para consultar y aportar recursos clínicos revisados por la organización.</p></LockedModule>}

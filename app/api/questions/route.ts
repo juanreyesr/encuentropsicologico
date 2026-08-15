@@ -39,11 +39,14 @@ export async function GET() {
   });
   const mine = assignments.filter(item => item.user_id === user.id).map(item => item.speaker_program_item_id as number);
 
+  // La bandeja se arma con las preguntas que ya llevan el nombre de la persona,
+  // sin depender de que siga asignada a una conferencia en el panel: quien
+  // recibió preguntas las sigue viendo y respondiendo siempre.
   const [inboxResponse, askedResponse] = await Promise.all([
-    mine.length ? supabaseServerFetch(`encuentro_psicologico_speaker_questions?select=${QUESTION_COLUMNS}&speaker_user_id=eq.${encodeURIComponent(user.id)}&order=is_favorite.desc,created_at.asc`) : null,
+    supabaseServerFetch(`encuentro_psicologico_speaker_questions?select=${QUESTION_COLUMNS}&speaker_user_id=eq.${encodeURIComponent(user.id)}&order=is_favorite.desc,created_at.asc`),
     supabaseServerFetch(`encuentro_psicologico_speaker_questions?select=${QUESTION_COLUMNS}&asker_user_id=eq.${encodeURIComponent(user.id)}&order=created_at.desc`),
   ]);
-  const inboxRows = inboxResponse?.ok ? await inboxResponse.json() as StoredQuestion[] : [];
+  const inboxRows = inboxResponse.ok ? await inboxResponse.json() as StoredQuestion[] : [];
   const askedRows = askedResponse.ok ? await askedResponse.json() as StoredQuestion[] : [];
   const names = await askerNames(inboxRows.map(row => row.asker_user_id));
   const speakerNameById = new Map(assignments.map(item => [item.speaker_program_item_id as number, item.name]));
@@ -51,6 +54,9 @@ export async function GET() {
   return Response.json({
     enabled: controls.questionsEnabled,
     programs: availableProgram,
+    // Los títulos de todo el programa, para nombrar bien cada pregunta aunque
+    // su conferencia ya no aparezca en la lista para preguntar.
+    programTitles: Object.fromEntries(program.map(item => [item.id, item.title])),
     assignedProgramIds: mine,
     inbox: inboxRows.map(row => ({ ...row, askerName: names.get(row.asker_user_id) ?? "Participante" })),
     asked: askedRows.map(row => ({ ...row, speakerName: speakerNameById.get(row.program_item_id) ?? "Ponente" })),
