@@ -279,3 +279,8 @@
 .control-certificates-grid b{display:block;font:1.5rem Georgia;color:#171938;margin-top:.2rem}
 .control-certificates>small{font-size:.64rem;color:#77748a;line-height:1.5}
 @media(max-width:700px){.control-certificates-grid{grid-template-columns:1fr 1fr}}
+/* Segundo acceso de llegada: Waze, junto al de Google Maps. */
+.hero-directions.waze>i{background:rgba(51,204,255,.16);color:#3cf}
+.hero-directions>i svg{display:block;width:17px;height:17px}
+.hero-directions.waze:hover,.hero-directions.waze:focus-visible{border-color:#3cf;background:rgba(51,204,255,.12)}
+.hero-directions-group{display:inline-flex;flex-wrap:wrap;gap:.6rem;align-items:center}
