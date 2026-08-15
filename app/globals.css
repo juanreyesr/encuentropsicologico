@@ -284,3 +284,29 @@
 .hero-directions>i svg{display:block;width:100%;height:100%;border-radius:6px}
 .hero-directions.waze:hover,.hero-directions.waze:focus-visible{border-color:#3cf;background:rgba(51,204,255,.12)}
 .hero-directions-group{display:inline-flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+
+/* Cierre de la encuesta: interes en repetir la actividad y tema sugerido. */
+.future-event-field{display:grid;gap:.6rem;padding:1rem 1.1rem;background:rgba(255,255,255,.04);border:1px solid rgba(218,187,133,.28)}
+.future-event-field>b{font-size:.78rem}
+.future-event-options{display:flex;gap:.6rem}
+.future-event-options button{min-width:92px;min-height:42px;padding:.5rem 1.1rem;border:1px solid rgba(218,187,133,.45);background:transparent;color:inherit;font:inherit;font-weight:700;cursor:pointer}
+.future-event-options button.selected{background:var(--gold,#d6aa67);border-color:var(--gold,#d6aa67);color:#151743}
+.future-event-field label{display:grid;gap:.45rem;font-size:.72rem}
+.future-event-field textarea{width:100%;padding:.8rem;border:1px solid rgba(255,255,255,.2);background:rgba(9,11,38,.5);color:inherit;font:inherit}
+.future-event-field small{opacity:.75;font-size:.66rem}
+.ratings-future-counts{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;max-width:420px}
+.ratings-future-counts article{background:#fbfaf7;border:1px solid #ece8df;padding:.9rem 1rem;display:flex;align-items:baseline;gap:.6rem}
+.ratings-future-counts article.yes{border-color:#bcd9c6;background:#f1f7f2}
+.ratings-future-counts span{font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#77748a}
+.ratings-future-counts b{font:1.8rem Georgia;color:#171938}
+.ratings-future-counts small{margin-left:auto;font-size:.7rem;font-weight:700;color:#3e8b6a}
+.ratings-topics{margin-top:1rem}
+.ratings-topics>b{display:block;font-size:.62rem;text-transform:uppercase;letter-spacing:.1em;color:#8a6a2c;margin-bottom:.5rem}
+.ratings-topics p{margin:0;padding:.6rem 0;border-bottom:1px solid #f1efe9;font-size:.74rem;color:#4f4d5c;line-height:1.5;display:flex;gap:1rem;justify-content:space-between}
+.ratings-topics p small{color:#a09ca9;white-space:nowrap}
+
+/* Contador de inscripciones en la portada, junto al cupo presencial. */
+.registered-counter{display:inline-flex;align-items:center;gap:.7rem;padding:.6rem .95rem;border:1px solid rgba(218,187,133,.4);background:rgba(218,187,133,.08);color:#f2f0f8}
+.registered-counter>b{font:1.9rem Georgia;color:var(--gold,#deb568);line-height:1}
+.registered-counter>span{display:grid;gap:.15rem;font-size:.6rem;text-transform:uppercase;letter-spacing:.12em;font-weight:700}
+.registered-counter small{font-size:.52rem;letter-spacing:.08em;color:#bdb9cb;font-weight:600;text-transform:none}

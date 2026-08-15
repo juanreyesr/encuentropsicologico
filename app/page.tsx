@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import type { EventProgramItem, EventSpeaker } from "../lib/event";
-import { DEFAULT_PROGRAM, EVENT_START, programTimeLabel } from "../lib/event";
+import { DEFAULT_PROGRAM, EVENT_CAPACITY, EVENT_START, programTimeLabel } from "../lib/event";
 import LiveBox from "./LiveBox";
 
 const guatemalaDepartments = [
@@ -33,7 +33,9 @@ export default function Home() {
   const [student, setStudent] = useState(false);
   const [sent, setSent] = useState(false);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
-  const [available, setAvailable] = useState(250);
+  const [available, setAvailable] = useState(EVENT_CAPACITY);
+  const [registered, setRegistered] = useState(0);
+  const [virtualRegistered, setVirtualRegistered] = useState(0);
   const [full, setFull] = useState(false);
   const [waitlisted, setWaitlisted] = useState(false);
   const [registrationError, setRegistrationError] = useState("");
@@ -60,7 +62,7 @@ export default function Home() {
   const visibleAgenda = program;
 
   useEffect(() => {
-    fetch("/api/registrations").then(response => response.json()).then(data => { setAvailable(data.available); setFull(data.full); }).catch(() => undefined);
+    fetch("/api/registrations").then(response => response.json()).then(data => { setAvailable(data.available); setFull(data.full); setRegistered(Number(data.registered ?? 0)); setVirtualRegistered(Number(data.virtual ?? 0)); }).catch(() => undefined);
     fetch("/api/speakers").then(response => response.json()).then(data => setSpeakers(data.speakers ?? [])).catch(() => undefined);
     fetch("/api/program").then(response => response.json()).then(data => setProgram((data.program?.length ? data.program : DEFAULT_PROGRAM) as EventProgramItem[])).catch(() => undefined);
     fetch("/api/content").then(response => response.json()).then(data => setSiteContent(current => ({ ...current, ...data, live: Boolean(data.live) }))).catch(() => undefined);
@@ -203,7 +205,7 @@ export default function Home() {
             <button className="primary" onClick={() => openRegistration("presencial")}>Vivirlo presencial <span>↗</span></button>
             <button className="secondary" onClick={() => openRegistration("virtual")}>Participar en línea <span>→</span></button>
           </div>
-          <button className={`seat-availability ${full ? "is-full" : ""}`} onClick={() => openRegistration("presencial")}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Reserva tu espacio si se libera" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de 250`}</span></button>
+          <span className="registered-counter" aria-live="polite"><b>{registered}</b><span>personas inscritas<small>{virtualRegistered} en línea · {Math.max(0, registered - virtualRegistered)} presenciales</small></span></span><button className={`seat-availability ${full ? "is-full" : ""}`} onClick={() => openRegistration("presencial")}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Reserva tu espacio si se libera" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de ${EVENT_CAPACITY}`}</span></button>
           <div className="hero-meta"><span><b>01</b> jornada</span><span><b>06</b> ponentes</span><span><b>3.5</b> horas</span><span className="hero-directions-group"><a className="hero-directions" href="https://maps.app.goo.gl/BTYVt9Fs7JeiQ1vw5" target="_blank" rel="noreferrer" aria-label="Cómo llegar al evento con Google Maps"><i aria-hidden="true">⌖</i><span>Cómo llegar<small>Google Maps</small></span><em aria-hidden="true">↗</em></a><a className="hero-directions waze" href="https://waze.com/ul/h9fx7m7sx9" target="_blank" rel="noreferrer" aria-label="Cómo llegar al evento con Waze"><i aria-hidden="true"><svg viewBox="0 0 48 48" role="presentation"><rect width="48" height="48" rx="11" fill="#33ccff"/><path d="M24 8.4c6.6 0 11.9 4.9 11.9 11 0 5.4-4.1 9.9-9.6 10.8H18c-1.3 0-2.5-.3-3.6-.9l-3.1 1.3c-1 .4-2-.6-1.6-1.6l1.2-3.1a10.6 10.6 0 0 1-1.8-6C9.1 13.6 16 8.4 24 8.4Z" fill="#fff" stroke="#26282d" strokeWidth="2.1" strokeLinejoin="round"/><circle cx="19.6" cy="19.4" r="2.05" fill="#26282d"/><circle cx="28.4" cy="19.4" r="2.05" fill="#26282d"/><path d="M19.1 24.6c1.2 2.1 3 3.2 4.9 3.2s3.7-1.1 4.9-3.2" stroke="#26282d" strokeWidth="2.1" fill="none" strokeLinecap="round"/><circle cx="18.6" cy="34.1" r="3.9" fill="#26282d"/><circle cx="30" cy="34.1" r="3.9" fill="#26282d"/></svg></i><span>Cómo llegar<small>Waze</small></span><em aria-hidden="true">↗</em></a></span></div>
           <div className="countdown"><span>Faltan</span><b>{daysRemaining}</b><span>días para la jornada</span></div>
         </div>
@@ -247,7 +249,7 @@ export default function Home() {
       <section id="inscripciones" className="formats section-pad">
         <div className="center-head"><p className="section-kicker">ELIGE CÓMO VIVIRLO</p><h2>Una experiencia.<br /><em>Dos formas de estar.</em></h2></div>
         <div className="format-grid">
-          <article className="format-card featured"><span className="format-label">PRESENCIAL</span><div className="format-symbol">◉</div><h3>Vívelo en Chimaltenango.</h3><p>Participa en la jornada, el panel de preguntas y el encuentro interdisciplinario.</p><div className={`format-capacity ${full ? "is-full" : ""}`}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Lista de espera disponible" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de 250`}</span></div><ul><li>Seis charlas clínicas breves</li><li>Panel con los seis ponentes</li><li>Coffee break incluido</li><li>Souvenir de la actividad</li><li>Constancia según perfil</li></ul><button className="primary" onClick={() => openRegistration("presencial")}>{full ? "Reservar si se libera" : "Inscripción presencial"} <span>→</span></button></article>
+          <article className="format-card featured"><span className="format-label">PRESENCIAL</span><div className="format-symbol">◉</div><h3>Vívelo en Chimaltenango.</h3><p>Participa en la jornada, el panel de preguntas y el encuentro interdisciplinario.</p><div className={`format-capacity ${full ? "is-full" : ""}`}><b>{full ? "Cupo completo" : available}</b><span>{full ? "Lista de espera disponible" : `espacio${available === 1 ? "" : "s"} disponible${available === 1 ? "" : "s"} de ${EVENT_CAPACITY}`}</span></div><ul><li>Seis charlas clínicas breves</li><li>Panel con los seis ponentes</li><li>Coffee break incluido</li><li>Souvenir de la actividad</li><li>Constancia según perfil</li></ul><button className="primary" onClick={() => openRegistration("presencial")}>{full ? "Reservar si se libera" : "Inscripción presencial"} <span>→</span></button></article>
           <article className="format-card"><span className="format-label">VIRTUAL</span><div className="format-symbol">◎</div><h3>Conéctate desde donde estés.</h3><p>Sigue la jornada en directo con el mismo contenido científico.</p><ul><li>Transmisión en vivo</li><li>Acceso a las seis charlas</li><li>Biblioteca digital</li><li>Constancia según perfil</li></ul><button className="secondary" onClick={() => openRegistration("virtual")}>Inscripción virtual <span>→</span></button></article>
         </div>
       </section>

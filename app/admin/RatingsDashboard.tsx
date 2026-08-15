@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 type Summary = { average: number | null; count: number; distribution: number[] };
 type SpeakerRating = Summary & { id: number; title: string; timeLabel: string; speakerName: string; answered: number; favorites: number; lastAt: string | null };
 type Recent = { id: number; title: string; speakerName: string; speakerRating: number; eventRating: number; createdAt: string };
+type FutureInterest = { answered: number; yes: number; no: number; topics: Array<{ id: number; text: string; createdAt: string }> };
 type Data = {
   updatedAt: string;
+  future: FutureInterest;
   totals: { questions: number; answered: number; favorites: number; participants: number; lastAt: string | null };
   event: Summary;
   speakers: SpeakerRating[];
@@ -107,6 +109,18 @@ export default function RatingsDashboard() {
         </article>)}
       </div>}
     </div>
+
+    {(data?.future.answered ?? 0) > 0 && <div className="ratings-future">
+      <div className="ratings-subtitle"><h4>¿Quieren otra actividad como esta?</h4><span>{data?.future.answered} persona{data?.future.answered === 1 ? "" : "s"} respondió</span></div>
+      <div className="ratings-future-counts">
+        <article className="yes"><span>Sí</span><b>{data?.future.yes ?? 0}</b><small>{data?.future.answered ? Math.round(((data?.future.yes ?? 0) / data.future.answered) * 100) : 0}%</small></article>
+        <article><span>No</span><b>{data?.future.no ?? 0}</b><small>{data?.future.answered ? Math.round(((data?.future.no ?? 0) / data.future.answered) * 100) : 0}%</small></article>
+      </div>
+      {(data?.future.topics.length ?? 0) > 0 && <div className="ratings-topics">
+        <b>Temas que proponen</b>
+        {data?.future.topics.map(topic => <p key={topic.id}>{topic.text}<small>{elapsed(topic.createdAt)}</small></p>)}
+      </div>}
+    </div>}
 
     {(data?.recent.length ?? 0) > 0 && <div className="ratings-feed">
       <div className="ratings-subtitle"><h4>Últimas valoraciones</h4></div>
