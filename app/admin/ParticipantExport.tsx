@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Descarga en Excel el listado de inscritos con los filtros que se elijan.
@@ -44,20 +44,29 @@ export default function ParticipantExport() {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
 
+  // Cada conteo lleva su número: si se cambia un filtro mientras el anterior
+  // sigue en camino, la respuesta que llega tarde se descarta y el número que
+  // se ve siempre corresponde a los filtros elegidos.
+  const lastRequest = useRef(0);
+
   const refresh = useCallback(async (current: Filters) => {
+    const request = lastRequest.current + 1;
+    lastRequest.current = request;
     setCounting(true);
     setError("");
     try {
       const response = await fetch(`/api/admin/registrations/export?preview=1&${query(current)}`, { cache: "no-store" });
+      if (request !== lastRequest.current) return;
       if (!response.ok) { setError("No se pudo calcular el listado. Intenta de nuevo."); return; }
       const result = await response.json() as { count: number; total: number; professions: string[] };
+      if (request !== lastRequest.current) return;
       setCount(result.count);
       setTotal(result.total);
       setProfessions(result.professions);
     } catch {
-      setError("No se pudo calcular el listado. Comprueba tu conexión.");
+      if (request === lastRequest.current) setError("No se pudo calcular el listado. Comprueba tu conexión.");
     } finally {
-      setCounting(false);
+      if (request === lastRequest.current) setCounting(false);
     }
   }, []);
 
