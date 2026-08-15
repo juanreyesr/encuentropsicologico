@@ -28,5 +28,5 @@ La aplicación utiliza tablas exclusivas con el prefijo `encuentro_psicologico_`
 - Inscripción virtual.
 - Panel de administración, activación de transmisión, patrocinadores y biblioteca.
 - Cuenta de participante con Supabase Auth: correo como usuario y teléfono como contraseña inicial.
-- Área privada para inscripción, materiales y descarga de constancias emitidas.
+- Área privada para inscripción, materiales y descarga del diploma emitido en PDF tamaño carta.
 - Compilación estándar de Next.js compatible con Vercel.

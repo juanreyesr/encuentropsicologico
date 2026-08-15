@@ -3,6 +3,7 @@ import { DEFAULT_PROGRAM, type EventProgramItem } from "../../lib/event";
 import { supabaseServerFetch } from "../../lib/supabase-server";
 import Link from "next/link";
 import AccountNameEditor from "./AccountNameEditor";
+import CertificateDownloads from "./CertificateDownloads";
 import ProfessionalNetworkEditor, { type ProfessionalDirectory } from "./ProfessionalNetworkEditor";
 import CommunityLibrary from "./CommunityLibrary";
 import AttendanceVerifier from "./AttendanceVerifier";
@@ -69,7 +70,7 @@ export default async function AccountPage() {
       <p>Aquí encontrarás tu inscripción, materiales, constancia de participación y tus opciones de red profesional.</p>
       <div className="account-grid">
         <article><span>INSCRIPCIÓN</span><h2>{activeRegistration ? "Confirmada" : "Pendiente"}</h2>{activeRegistration && <><p>{activeRegistration.modality === "presencial" ? "Presencial" : "Virtual"} · {activeRegistration.status === "waitlist" ? "Lista de espera" : "Confirmada"}</p><ModalitySwitcher current={activeRegistration.modality as "presencial" | "virtual"} /></>}</article>
-        <article><span>CONSTANCIA</span><h2>{certificate?.attendance_confirmed && modules.certificates.enabled ? "Disponible" : "Se habilitará después del evento"}</h2><p>{modules.certificates.enabled ? "La asistencia debe ser confirmada por la organización." : "La descarga de diplomas está cerrada por la organización en este momento."}</p>{certificate?.attendance_confirmed && modules.certificates.enabled && <a className="primary" href="/api/account/certificate">Descargar constancia</a>}</article>
+        <article><span>CONSTANCIA</span><h2>{certificate?.attendance_confirmed && modules.certificates.enabled ? "Disponible" : "Se habilitará después del evento"}</h2><p>{modules.certificates.enabled ? "La asistencia debe ser confirmada por la organización." : "La descarga de diplomas está cerrada por la organización en este momento."}</p>{certificate?.attendance_confirmed && modules.certificates.enabled && <CertificateDownloads />}</article>
       </div>
       <LiveBox />
       <AttendanceVerifier isOrganizer={isOrganizer} />

@@ -43,3 +43,6 @@ next-env.d.ts
 /work/
 /.pnpm-store/
 /.sites-git/
+
+# Fuentes de pdf.js copiadas al compilar (ver scripts/copy-pdfjs.mjs)
+/public/pdfjs/
