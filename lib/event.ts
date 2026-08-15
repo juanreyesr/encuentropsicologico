@@ -1,5 +1,5 @@
 export const EVENT_START = "2026-08-15T08:30:00-06:00";
-export const EVENT_CAPACITY = 250;
+export const EVENT_CAPACITY = 225;
 
 export function eventDaysRemaining(now = Date.now()) {
   return Math.max(0, Math.ceil((new Date(EVENT_START).getTime() - now) / 86_400_000));

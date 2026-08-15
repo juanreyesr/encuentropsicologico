@@ -17,6 +17,8 @@ export default function QuestionsHub() {
   const [question, setQuestion] = useState("");
   const [speakerRating, setSpeakerRating] = useState(5);
   const [eventRating, setEventRating] = useState(5);
+  const [wantsFuture, setWantsFuture] = useState<boolean | null>(null);
+  const [futureTopic, setFutureTopic] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -36,10 +38,10 @@ export default function QuestionsHub() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(""); setMessage("");
-    const response = await fetch("/api/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ programItemId: Number(programItemId), question, speakerRating, eventRating }) });
+    const response = await fetch("/api/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ programItemId: Number(programItemId), question, speakerRating, eventRating, wantsFutureEvent: wantsFuture, futureTopic }) });
     const result = await response.json(); setSaving(false);
     if (!response.ok) { setError(result.error ?? "No se pudo enviar la pregunta."); return; }
-    setQuestion(""); setProgramItemId(""); setMessage("Tu pregunta llegó al ponente. Gracias por participar.");
+    setQuestion(""); setProgramItemId(""); setWantsFuture(null); setFutureTopic(""); setMessage("Tu pregunta llegó al ponente. Gracias por participar.");
     await load();
   }
   async function favorite(id: number, value: boolean) {
@@ -80,6 +82,14 @@ export default function QuestionsHub() {
           <label>Tu pregunta *<textarea required minLength={5} maxLength={1400} rows={6} value={question} onChange={event => setQuestion(event.target.value)} placeholder="Escribe una pregunta clara y respetuosa para la conferencia." /></label>
           <label className="rating-field">Califica esta conferencia: <b>{speakerRating}/5</b><input type="range" min="1" max="5" value={speakerRating} onChange={event => setSpeakerRating(Number(event.target.value))} /><small>5 es la valoración más alta.</small></label>
           <label className="rating-field">Califica la actividad: <b>{eventRating}/5</b><input type="range" min="1" max="5" value={eventRating} onChange={event => setEventRating(Number(event.target.value))} /><small>5 es la valoración más alta.</small></label>
+          <div className="future-event-field">
+            <b>¿Te gustaría otra actividad como esta en el futuro?</b>
+            <div className="future-event-options">
+              <button type="button" className={wantsFuture === true ? "selected" : ""} aria-pressed={wantsFuture === true} onClick={() => setWantsFuture(wantsFuture === true ? null : true)}>Sí</button>
+              <button type="button" className={wantsFuture === false ? "selected" : ""} aria-pressed={wantsFuture === false} onClick={() => { setWantsFuture(wantsFuture === false ? null : false); setFutureTopic(""); }}>No</button>
+            </div>
+            {wantsFuture === true && <label>¿Sobre qué tema te gustaría?<textarea rows={3} maxLength={600} value={futureTopic} onChange={event => setFutureTopic(event.target.value)} placeholder="Opcional. Cuéntanos qué tema te interesaría para una próxima jornada." /><small>Opcional: puedes enviar tu pregunta sin llenarlo.</small></label>}
+          </div>
           {error && <p className="form-error" role="alert">{error}</p>}
           {message && <p className="community-success" role="status">{message}</p>}
           <button className="primary" disabled={saving}>{saving ? "Enviando…" : "Enviar pregunta →"}</button>

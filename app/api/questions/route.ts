@@ -4,9 +4,9 @@ import { supabaseServerFetch } from "../../../lib/supabase-server";
 
 type Program = { id: number; start_time: string; end_time: string; type: string; title: string };
 type Assignment = { user_id: string; name: string; speaker_program_item_id: number | null; event_roles: string[] | null };
-type StoredQuestion = { id: number; asker_user_id: string; speaker_user_id: string; program_item_id: number; question: string; speaker_rating: number; event_rating: number; is_favorite: boolean; answer: string | null; answered_at: string | null; created_at: string };
+type StoredQuestion = { id: number; asker_user_id: string; speaker_user_id: string; program_item_id: number; question: string; speaker_rating: number; event_rating: number; is_favorite: boolean; answer: string | null; answered_at: string | null; wants_future_event: boolean | null; future_topic: string | null; created_at: string };
 
-const QUESTION_COLUMNS = "id,asker_user_id,speaker_user_id,program_item_id,question,speaker_rating,event_rating,is_favorite,answer,answered_at,created_at";
+const QUESTION_COLUMNS = "id,asker_user_id,speaker_user_id,program_item_id,question,speaker_rating,event_rating,is_favorite,answer,answered_at,wants_future_event,future_topic,created_at";
 
 function hasSpeakerRole(assignment: Assignment) { return (assignment.event_roles ?? []).includes("speaker") && Number.isInteger(assignment.speaker_program_item_id); }
 function score(value: unknown) { const parsed = Number(value); return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5 ? parsed : 5; }
@@ -60,7 +60,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const user = await currentUser();
   if (!user) return Response.json({ error: "Inicia sesión para enviar una pregunta." }, { status: 401 });
-  const body = await request.json() as { programItemId?: number; question?: string; speakerRating?: number; eventRating?: number };
+  const body = await request.json() as { programItemId?: number; question?: string; speakerRating?: number; eventRating?: number; wantsFutureEvent?: boolean | null; futureTopic?: string };
   const question = String(body.question ?? "").trim();
   const programItemId = Number(body.programItemId);
   if (!Number.isInteger(programItemId) || question.length < 5 || question.length > 1400) return Response.json({ error: "Escribe una pregunta de entre 5 y 1,400 caracteres y selecciona una conferencia." }, { status: 400 });
@@ -71,7 +71,8 @@ export async function POST(request: Request) {
   if (!controls.questionsEnabled) return Response.json({ error: "Las preguntas todavía no están habilitadas." }, { status: 403 });
   const [assignment] = assignmentResponse.ok ? await assignmentResponse.json() as Assignment[] : [];
   if (!assignment || !hasSpeakerRole(assignment)) return Response.json({ error: "Esta conferencia aún no tiene un ponente habilitado para recibir preguntas." }, { status: 400 });
-  const response = await supabaseServerFetch("encuentro_psicologico_speaker_questions?select=id", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ asker_user_id: user.id, speaker_user_id: assignment.user_id, program_item_id: programItemId, question, speaker_rating: score(body.speakerRating), event_rating: score(body.eventRating) }) });
+  const futureTopic = body.wantsFutureEvent === true ? String(body.futureTopic ?? "").trim().slice(0, 600) || null : null;
+  const response = await supabaseServerFetch("encuentro_psicologico_speaker_questions?select=id", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ asker_user_id: user.id, speaker_user_id: assignment.user_id, program_item_id: programItemId, question, speaker_rating: score(body.speakerRating), event_rating: score(body.eventRating), wants_future_event: typeof body.wantsFutureEvent === "boolean" ? body.wantsFutureEvent : null, future_topic: futureTopic }) });
   if (!response.ok) return Response.json({ error: "No se pudo enviar la pregunta." }, { status: 503 });
   return Response.json({ ok: true, question: (await response.json())[0] });
 }
