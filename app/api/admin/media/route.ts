@@ -2,6 +2,12 @@ import { isEventAdmin } from "../../../../lib/admin";
 import { supabaseServerConfiguration } from "../../../../lib/supabase-server";
 
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"]);
+/**
+ * Las piezas del diploma se dibujan dentro del PDF, y ahí solo se pueden
+ * incrustar PNG y JPG. Aceptar otro formato dejaría firmas o logos invisibles
+ * en el diploma que descarga la persona.
+ */
+const certificateImageTypes = new Set(["image/jpeg", "image/png"]);
 
 export async function POST(request: Request) {
   if (!await isEventAdmin()) return Response.json({ error: "No autorizado" }, { status: 401 });
@@ -13,7 +19,7 @@ export async function POST(request: Request) {
   if (!allowedTypes.has(file.type)) return Response.json({ error: "Formato no permitido. Usa JPG, PNG, WebP, MP4 o WebM." }, { status: 400 });
   if (file.size > 50 * 1024 * 1024) return Response.json({ error: "El archivo supera el máximo de 50 MB." }, { status: 400 });
   const extension = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
-  if ((purpose === "certificate" || purpose === "sponsor") && !file.type.startsWith("image/")) return Response.json({ error: "Para este uso solo se permiten imágenes." }, { status: 400 });
+  if ((purpose === "certificate" || purpose === "sponsor") && !certificateImageTypes.has(file.type)) return Response.json({ error: "Para el diploma solo se permiten imágenes PNG o JPG. El PNG conserva el fondo transparente de firmas y sellos." }, { status: 400 });
   if ((purpose === "certificate" || purpose === "sponsor") && file.size > 10 * 1024 * 1024) return Response.json({ error: "La imagen supera el máximo de 10 MB." }, { status: 400 });
   const directory = purpose === "certificate" ? "certificates" : purpose === "sponsor" ? "sponsors" : "speakers";
   const path = `${directory}/${crypto.randomUUID()}.${extension}`;

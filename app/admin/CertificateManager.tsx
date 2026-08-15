@@ -53,30 +53,38 @@ function requestError(error: unknown, fallback: string) {
 
 async function optimizeImageForUpload(file: File) {
   if (file.size <= DIRECT_UPLOAD_LIMIT) return file;
-  if (!(file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/webp")) {
-    throw new Error("El archivo debe ser una imagen JPG, PNG o WebP.");
+  if (!(file.type === "image/jpeg" || file.type === "image/png")) {
+    throw new Error("El archivo debe ser una imagen PNG o JPG.");
   }
 
   const source = await createImageBitmap(file);
-  // Más que suficiente para un logo de diploma, sin cargar píxeles que nunca se mostrarán.
-  const largestSide = 960;
-  const scale = Math.min(1, largestSide / Math.max(source.width, source.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(source.width * scale));
-  canvas.height = Math.max(1, Math.round(source.height * scale));
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("No se pudo preparar la imagen para la carga.");
-  context.drawImage(source, 0, 0, canvas.width, canvas.height);
-  source.close();
+  // Se reduce en PNG para no perder el fondo transparente de firmas y sellos,
+  // que es lo que permite estamparlas sobre el diploma.
+  const makeFile = async (largestSide: number) => {
+    const scale = Math.min(1, largestSide / Math.max(source.width, source.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(source.width * scale));
+    canvas.height = Math.max(1, Math.round(source.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("No se pudo preparar la imagen para la carga.");
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    return new Promise<File | null>(resolve => {
+      canvas.toBlob(blob => {
+        resolve(blob ? new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.png`, { type: "image/png" }) : null);
+      }, "image/png");
+    });
+  };
 
-  const makeFile = (quality: number) => new Promise<File | null>(resolve => {
-    canvas.toBlob(blob => {
-      resolve(blob ? new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.webp`, { type: "image/webp" }) : null);
-    }, "image/webp", quality);
-  });
-
-  let optimized = await makeFile(.82);
-  if (!optimized || optimized.size > DIRECT_UPLOAD_LIMIT) optimized = await makeFile(.68);
+  // Más que suficiente para un logo o una firma de diploma, sin cargar píxeles
+  // que nunca se imprimirán.
+  let optimized: File | null = null;
+  try {
+    optimized = await makeFile(960);
+    if (!optimized || optimized.size > DIRECT_UPLOAD_LIMIT) optimized = await makeFile(720);
+    if (!optimized || optimized.size > DIRECT_UPLOAD_LIMIT) optimized = await makeFile(540);
+  } finally {
+    source.close();
+  }
   if (!optimized || optimized.size > DIRECT_UPLOAD_LIMIT) {
     throw new Error("No se pudo reducir la imagen lo suficiente. Usa una versión de menos de 3 MB.");
   }
@@ -93,7 +101,7 @@ export default function CertificateManager() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewType, setPreviewType] = useState<CertificateType>("professional");
   const [sampleName, setSampleName] = useState("María Fernanda López");
-  const [previewHtml, setPreviewHtml] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
@@ -122,6 +130,10 @@ export default function CertificateManager() {
     window.addEventListener("keydown", closeWithEscape);
     return () => window.removeEventListener("keydown", closeWithEscape);
   }, [editorOpen, previewOpen]);
+
+  // El PDF de la vista previa vive en memoria del navegador; se libera al
+  // cambiar de versión o al cerrar el panel.
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   async function upload(event: ChangeEvent<HTMLInputElement>, type: "signature" | "logo" | "seal" | "sealLeft", index = 0) {
     const file = event.target.files?.[0];
@@ -235,21 +247,26 @@ export default function CertificateManager() {
     setPreviewType(type);
     setPreviewLoading(true);
     setPreviewError("");
-    const response = await fetch("/api/admin/certificates/preview", {
-      method: "POST",
-      credentials: "same-origin",
-      cache: "no-store",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ settings, type, fullName: sampleName }),
-    });
-    const html = await response.text();
-    setPreviewLoading(false);
-    if (!response.ok) {
-      setPreviewHtml("");
-      setPreviewError(html || "No se pudo generar la vista previa.");
-      return;
+    try {
+      const response = await fetch("/api/admin/certificates/preview", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings, type, fullName: sampleName }),
+      });
+      if (!response.ok) {
+        setPreviewUrl("");
+        setPreviewError(await response.text() || "No se pudo generar la vista previa.");
+        return;
+      }
+      setPreviewUrl(URL.createObjectURL(await response.blob()));
+    } catch (error) {
+      setPreviewUrl("");
+      setPreviewError(requestError(error, "No se pudo generar la vista previa. Comprueba tu conexión e inténtalo de nuevo."));
+    } finally {
+      setPreviewLoading(false);
     }
-    setPreviewHtml(html);
   }
 
   async function showPreview(type: CertificateType = previewType) {
@@ -258,10 +275,8 @@ export default function CertificateManager() {
   }
 
   function openPrintablePreview() {
-    if (!previewHtml) return;
-    const url = URL.createObjectURL(new Blob([previewHtml], { type: "text/html" }));
-    window.open(url, "_blank", "noopener,noreferrer");
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    if (!previewUrl) return;
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -314,9 +329,9 @@ export default function CertificateManager() {
                 <article className="certificate-signature-card" key={slot.key}>
                   <label className="certificate-file-control">
                     <span className="certificate-file-preview">{signature.image_url ? <img src={signature.image_url} alt={`Vista previa de la ${slot.label.toLowerCase()}`} /> : <b>{slot.label}</b>}</span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "signature", index)} />
+                    <input type="file" accept="image/jpeg,image/png" disabled={busyAction === "upload"} onChange={event => upload(event, "signature", index)} />
                     <strong>{busyAction === "upload" ? "Cargando imagen…" : signature.image_url ? "Cambiar firma" : "Cargar firma"}</strong>
-                    <small>PNG, JPG o WebP · máximo 10 MB</small>
+                    <small>PNG o JPG · máximo 10 MB</small>
                   </label>
                   <div className="certificate-signature-fields">
                     <b className="certificate-signature-position">{slot.label}</b>
@@ -338,7 +353,7 @@ export default function CertificateManager() {
                 <div className="certificate-seal-body" key={seal.key}>
                   <label className="certificate-file-control">
                     <span className="certificate-file-preview seal">{seal.url ? <img src={seal.url} alt={`Vista previa del ${seal.title.toLowerCase()}`} /> : <b>{seal.title}</b>}</span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, seal.key === "seal" ? "seal" : "sealLeft")} />
+                    <input type="file" accept="image/jpeg,image/png" disabled={busyAction === "upload"} onChange={event => upload(event, seal.key === "seal" ? "seal" : "sealLeft")} />
                     <strong>{busyAction === "upload" ? "Cargando imagen…" : seal.url ? "Cambiar imagen" : "Cargar imagen"}</strong>
                     <small>PNG con fondo blanco o transparente · máximo 10 MB</small>
                   </label>
@@ -363,7 +378,7 @@ export default function CertificateManager() {
                     <button type="button" aria-label="Quitar logo" disabled={busyAction !== null} onClick={() => setSettings({ ...settings, sponsor_logos: settings.sponsor_logos.filter((_, itemIndex) => itemIndex !== index) })}>×</button>
                   </figure>
                 ))}
-                {settings.sponsor_logos.length < MAX_SPONSOR_LOGOS && <label className="certificate-logo-upload"><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busyAction === "upload"} onChange={event => upload(event, "logo")} /><strong>{busyAction === "upload" ? "Cargando imagen…" : "Agregar logo"}</strong><small>{settings.sponsor_logos.length} de {MAX_SPONSOR_LOGOS} logos · PNG, JPG o WebP</small></label>}
+                {settings.sponsor_logos.length < MAX_SPONSOR_LOGOS && <label className="certificate-logo-upload"><input type="file" accept="image/jpeg,image/png" disabled={busyAction === "upload"} onChange={event => upload(event, "logo")} /><strong>{busyAction === "upload" ? "Cargando imagen…" : "Agregar logo"}</strong><small>{settings.sponsor_logos.length} de {MAX_SPONSOR_LOGOS} logos · PNG o JPG</small></label>}
               </div>
               {settings.sponsor_logos.length === MAX_SPONSOR_LOGOS && <small className="certificate-logo-limit">Ya agregaste los 4 logos. Puedes quitar uno para reemplazarlo.</small>}
             </div>
@@ -388,7 +403,7 @@ export default function CertificateManager() {
                 <p className="section-kicker">VISTA PREVIA</p>
                 <h2 id="certificate-preview-title">Así quedará el certificado</h2>
               </div>
-              <p>Revisa el texto, las firmas y los logos en los cuatro tipos antes de emitir.</p>
+              <p>Es el mismo PDF que descargará cada participante. Revisa el texto, las firmas y los logos en los cuatro tipos antes de emitir.</p>
             </header>
 
             <div className="certificate-preview-toolbar">
@@ -403,12 +418,12 @@ export default function CertificateManager() {
             {previewError && <p className="certificate-preview-error" role="alert">{previewError}</p>}
             <div className={`certificate-preview-stage${previewLoading ? " loading" : ""}`} aria-busy={previewLoading}>
               {previewLoading && <div className="certificate-preview-loading" role="status">Preparando el certificado…</div>}
-              {previewHtml && <iframe title={`Vista previa del certificado: ${CERTIFICATE_TYPE_LABELS[previewType]}`} srcDoc={previewHtml} />}
+              {previewUrl && <iframe title={`Vista previa del certificado: ${CERTIFICATE_TYPE_LABELS[previewType]}`} src={`${previewUrl}#toolbar=0&navpanes=0&view=Fit`} />}
             </div>
 
             <div className="community-modal-actions certificate-preview-actions">
               <button className="secondary" onClick={() => setPreviewOpen(false)}>Cerrar vista</button>
-              <button className="primary" disabled={!previewHtml || previewLoading} onClick={openPrintablePreview}>Abrir en tamaño real / imprimir prueba</button>
+              <button className="primary" disabled={!previewUrl || previewLoading} onClick={openPrintablePreview}>Abrir el PDF en tamaño real</button>
             </div>
           </section>
         </div>
