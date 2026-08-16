@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import type { EventProgramItem, EventSpeaker } from "../lib/event";
 import { DEFAULT_PROGRAM, EVENT_CAPACITY, EVENT_START, programTimeLabel } from "../lib/event";
-import LiveBox from "./LiveBox";
+import PhotoCarousel from "./PhotoCarousel";
 
 const guatemalaDepartments = [
   "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Guatemala", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa",
@@ -185,10 +185,9 @@ export default function Home() {
           <img className="brand-logo" src="/logo-duelo-arbol-morado.png" alt="" /><span>ENCUENTRO<br /><b>CLÍNICO</b></span>
         </a>
         <nav aria-label="Navegación principal">
-          <a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a>
+          <a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#galeria">Galería</a><a href="#constancias">Constancias</a>
         </nav>
         <div className="nav-actions">
-          <a className={`live ${siteContent.live ? "" : "locked"}`} href="#transmision" aria-label={siteContent.live ? "Ir a la transmisión" : "Transmisión aún no disponible"}><i /> {siteContent.live ? "En vivo · Entrar" : "En vivo · Próximamente"}</a>
           <Link className="login-link" href="/acceso">Iniciar sesión</Link>
           <button className="primary small" onClick={() => openRegistration("presencial")}>Inscribirme</button>
           <Link className="admin-link" href="/admin" aria-label="Administración">⚙</Link>
@@ -262,7 +261,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="transmision" className="live-banner section-pad"><LiveBox fallback={<div className="live-visual"><div className="play-lock">▶</div><span>TRANSMISIÓN PRIVADA</span></div>} /><div><p className="section-kicker light">ENCUENTRO EN VIVO</p><h2>{siteContent.live ? <>La sala está<br /><em>lista para ti.</em></> : <>La sala se abrirá<br /><em>cuando sea el momento.</em></>}</h2><p>{siteContent.live ? "Ingresa desde tu cuenta para ver la transmisión, participar en las preguntas y acceder a los recursos del encuentro." : "El acceso aparecerá aquí cuando el equipo organizador active la transmisión."}</p>{siteContent.live ? <Link className="secondary light-btn" href="/transmision">Unirme al encuentro →</Link> : <button disabled className="secondary light-btn">Aún no disponible · 🔒</button>}</div></section>
+      <PhotoCarousel />
 
       <section id="recursos" className="resources section-pad">
         <div className="section-head"><div><p className="section-kicker">BIBLIOTECA DEL ENCUENTRO</p><h2>Para seguir<br /><em>profundizando.</em></h2></div><p className="side-copy dark-copy">Materiales seleccionados por el comité académico. Algunos recursos se habilitarán durante el evento.</p></div>
@@ -286,7 +285,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => openRegistration("presencial")}>Inscripción presencial</button><button onClick={() => openRegistration("virtual")}>Inscripción virtual</button><Link href="/preguntas">Preguntas a conferencistas</Link><a href="mailto:lic.juanreyesr@gmail.com">Patrocinios</a><Link href="/admin">Administración</Link></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
+      <footer><div className="footer-brand"><img className="footer-art" src="/og.png" alt="Cuando el Duelo se Detiene — Jornada Clínica sobre Duelo Prolongado" /></div><div><b>Explora</b><a href="#encuentro">La jornada</a><a href="#agenda">Agenda</a><a href="#ponentes">Ponentes</a><a href="#galeria">Galería</a><a href="#constancias">Constancias</a></div><div><b>Participa</b><button onClick={() => openRegistration("presencial")}>Inscripción presencial</button><button onClick={() => openRegistration("virtual")}>Inscripción virtual</button><Link href="/preguntas">Preguntas a conferencistas</Link><a href="mailto:lic.juanreyesr@gmail.com">Patrocinios</a><Link href="/admin">Administración</Link></div><div><b>Mantente cerca</b><p>Recibe novedades, recursos y anuncios importantes.</p><form><input type="email" aria-label="Correo electrónico" placeholder="tu@email.com" /><button aria-label="Suscribirme">→</button></form></div><small>© 2026 Encuentro Clínico de Psicología · Chimaltenango · Privacidad · Términos</small></footer>
 
       {selectedSpeaker && <div className="modal-backdrop speaker-modal-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedSpeaker(null); }}><section className="speaker-modal" role="dialog" aria-modal="true" aria-labelledby="speaker-modal-name"><button className="modal-close" aria-label="Cerrar perfil" onClick={() => setSelectedSpeaker(null)}>×</button><div className="speaker-modal-media">{selectedSpeaker.photo_url ? <img src={selectedSpeaker.photo_url} alt={`Fotografía de ${selectedSpeaker.name}`} /> : <div className="speaker-placeholder">{selectedSpeaker.name.slice(0, 1)}</div>}</div><div className="speaker-modal-copy"><p className="section-kicker">{speakerProgramItem(selectedSpeaker) ? programTimeLabel(speakerProgramItem(selectedSpeaker)!) : selectedSpeaker.talk_time || "PONENTE"}</p><h2 id="speaker-modal-name" className="preserve-newlines">{selectedSpeaker.name}</h2><strong className="preserve-newlines">{selectedSpeaker.professional_title}</strong>{(selectedSpeaker.talk_title || speakerProgramItem(selectedSpeaker)?.title) && <h3 className="preserve-newlines">{selectedSpeaker.talk_title || speakerProgramItem(selectedSpeaker)?.title}</h3>}<p className="preserve-newlines">{selectedSpeaker.bio || "La semblanza profesional estará disponible próximamente."}</p>{(selectedSpeaker.contact_email || selectedSpeaker.contact_phone || selectedSpeaker.contact_website) && <div className="speaker-contact"><b>Contacto</b>{selectedSpeaker.contact_email && <a href={`mailto:${selectedSpeaker.contact_email}`}>{selectedSpeaker.contact_email}</a>}{selectedSpeaker.contact_phone && <a href={`tel:${selectedSpeaker.contact_phone}`}>{selectedSpeaker.contact_phone}</a>}{selectedSpeaker.contact_website && <a href={selectedSpeaker.contact_website.startsWith("http") ? selectedSpeaker.contact_website : `https://${selectedSpeaker.contact_website}`} target="_blank" rel="noreferrer">Sitio web ↗</a>}</div>}{selectedSpeaker.video_url && <video src={selectedSpeaker.video_url} controls preload="metadata" />}</div></section></div>}
 
