@@ -14,14 +14,15 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const file = form.get("file");
   const requestedPurpose = String(form.get("purpose") ?? "speaker");
-  const purpose = requestedPurpose === "certificate" || requestedPurpose === "sponsor" ? requestedPurpose : "speaker";
+  const purpose = requestedPurpose === "certificate" || requestedPurpose === "sponsor" || requestedPurpose === "gallery" ? requestedPurpose : "speaker";
   if (!(file instanceof File)) return Response.json({ error: "Selecciona un archivo." }, { status: 400 });
   if (!allowedTypes.has(file.type)) return Response.json({ error: "Formato no permitido. Usa JPG, PNG, WebP, MP4 o WebM." }, { status: 400 });
   if (file.size > 50 * 1024 * 1024) return Response.json({ error: "El archivo supera el máximo de 50 MB." }, { status: 400 });
   const extension = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
+  if (purpose === "gallery" && !file.type.startsWith("image/")) return Response.json({ error: "La galería solo admite imágenes." }, { status: 400 });
   if ((purpose === "certificate" || purpose === "sponsor") && !certificateImageTypes.has(file.type)) return Response.json({ error: "Para el diploma solo se permiten imágenes PNG o JPG. El PNG conserva el fondo transparente de firmas y sellos." }, { status: 400 });
   if ((purpose === "certificate" || purpose === "sponsor") && file.size > 10 * 1024 * 1024) return Response.json({ error: "La imagen supera el máximo de 10 MB." }, { status: 400 });
-  const directory = purpose === "certificate" ? "certificates" : purpose === "sponsor" ? "sponsors" : "speakers";
+  const directory = purpose === "certificate" ? "certificates" : purpose === "sponsor" ? "sponsors" : purpose === "gallery" ? "gallery" : "speakers";
   const path = `${directory}/${crypto.randomUUID()}.${extension}`;
   try {
     const { projectUrl, secretKey } = supabaseServerConfiguration();

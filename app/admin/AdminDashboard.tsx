@@ -10,6 +10,7 @@ import AttendanceControl from "./AttendanceControl";
 import EventControls from "./EventControls";
 import MaterialsManager from "./MaterialsManager";
 import RatingsDashboard from "./RatingsDashboard";
+import GalleryManager from "./GalleryManager";
 import SponsorManager from "./SponsorManager";
 
 type DashboardData = {
@@ -25,7 +26,7 @@ type DashboardData = {
 };
 
 type SiteContent = { title: string; date: string; place: string; description: string; live: boolean; liveTitle: string; liveUrl: string };
-type Section = "Resumen" | "Control del evento" | "Contenido" | "Inscritos" | "Programa" | "Ponentes" | "Materiales" | "Preguntas" | "Certificados" | "Patrocinadores" | "Red profesional" | "Biblioteca" | "Problemas" | "Transmisión";
+type Section = "Resumen" | "Control del evento" | "Contenido" | "Galería" | "Inscritos" | "Programa" | "Ponentes" | "Materiales" | "Preguntas" | "Certificados" | "Patrocinadores" | "Red profesional" | "Biblioteca" | "Problemas" | "Transmisión";
 type SpeakerDraft = Omit<EventSpeaker, "id">;
 type ProgramDraft = Omit<EventProgramItem, "id">;
 type Registration = { id: number; user_id: string | null; modality: string; name: string; email: string; phone: string; attendee_type: string; profession: string | null; license: string | null; institution: string | null; country: string; department: string | null; gender: string | null; status: string; professional_network_opt_in: boolean; event_roles: string[]; speaker_program_item_id: number | null; created_at: string };
@@ -37,8 +38,8 @@ const emptyDashboard: DashboardData = { daysRemaining: 0, metrics: { total: 0, p
 const emptySpeaker: SpeakerDraft = { name: "", professional_title: "", talk_title: "", talk_time: "", program_item_id: null, bio: "", photo_url: null, video_url: null, contact_email: "", contact_phone: "", contact_website: "", display_order: 0, is_published: false };
 const emptyProgramItem: ProgramDraft = { start_time: "", end_time: "", type: "", title: "", description: "", details: "", display_order: 0, is_published: true };
 const emptyRegistration: RegistrationDraft = { modality: "presencial", name: "", email: "", phone: "", attendee_type: "general", profession: "", license: "", institution: "", country: "Guatemala", department: "", gender: "", status: "confirmed", professional_network_opt_in: false, event_roles: [], speaker_program_item_id: null };
-const sections: Section[] = ["Resumen", "Control del evento", "Contenido", "Inscritos", "Programa", "Ponentes", "Materiales", "Preguntas", "Certificados", "Patrocinadores", "Red profesional", "Biblioteca", "Problemas", "Transmisión"];
-const navIcons = ["◇", "⏻", "✎", "▤", "☷", "◉", "⇩", "?", "▱", "◆", "♢", "▧", "!", "▶"];
+const sections: Section[] = ["Resumen", "Control del evento", "Contenido", "Galería", "Inscritos", "Programa", "Ponentes", "Materiales", "Preguntas", "Certificados", "Patrocinadores", "Red profesional", "Biblioteca", "Problemas", "Transmisión"];
+const navIcons = ["◇", "⏻", "✎", "▦", "▤", "☷", "◉", "⇩", "?", "▱", "◆", "♢", "▧", "!", "▶"];
 
 function displayProgramOption(item: EventProgramItem) {
   return `${programTimeLabel(item)} · ${item.type} · ${item.title}`;
@@ -356,6 +357,7 @@ export default function AdminDashboard({ userName }: { userName: string }) {
       </div>}
 
       {active === "Control del evento" && <EventControls />}
+      {active === "Galería" && <GalleryManager />}
       {active === "Materiales" && <MaterialsManager />}
       {active === "Preguntas" && <><QuestionControl /><AttendanceControl /></>}
       {active === "Certificados" && <CertificateManager />}
